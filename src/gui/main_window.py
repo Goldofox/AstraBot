@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from datetime import datetime
 from functools import partial
 from typing import Literal
 
-from PyQt6.QtCore import QTimer, QUrl, pyqtSignal
-from PyQt6.QtGui import QCloseEvent, QColor, QIcon, QPixmap
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PyQt6.QtCore import QTimer, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QCloseEvent, QColor, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
@@ -28,6 +26,7 @@ from src.gui.components.manual_confirmation import ManualConfirmationDialogs
 from src.gui.consts import BASE_HEIGHT, BASE_WIDTH
 from src.gui.fragments.app_fluent_window import AppFluentWindow
 from src.gui.fragments.sidebar_item import SidebarItem
+from src.gui.services.item_icons import class_icon_cache
 from src.gui.pages.activity import ActivityPage
 from src.gui.pages.settings.settings_page import SettingsPage
 from src.services.background import run_in_background
@@ -36,10 +35,6 @@ lazy from src.core.bot.bot import Bot
 lazy from src.core.bot.bot_manager import BotManager
 lazy from src.gui.fragments.account_stacked_widget import AccountStackedWidget
 lazy from src.services.startup import subscription_end_dates
-
-logger = logging.getLogger()
-_BREED_ICON_URL_TEMPLATE = "https://api.dofusdb.fr/img/breeds/symbol_{breed_id}.png"
-
 
 class MainWindow(AppFluentWindow):
     retry_requested = pyqtSignal()
@@ -71,8 +66,8 @@ class MainWindow(AppFluentWindow):
 
         self.disconnected_icon = FluentIcon.PEOPLE.icon(color=QColor(255, 0, 0))
         self.connected_icon = FluentIcon.PEOPLE.icon(color=QColor(0, 255, 0))
-        self._breed_icon_network_manager = QNetworkAccessManager(self)
-        self._breed_icon_by_id: dict[int, QIcon] = {}
+        self._class_icons = class_icon_cache()
+        self._class_icons.ready.connect(self._on_breed_icon_ready)
 
         self.account_widgets: list[AccountStackedWidget] = []
         self._account_pages: dict[str, QWidget] = {}
@@ -278,70 +273,27 @@ class MainWindow(AppFluentWindow):
         self._set_sidebar_title(navigation_widget, login, PlayerInfoStorage().get_snapshot(login))
 
     def _show_breed_icon(self, navigation_widget: SidebarItem, account: Bot) -> None:
+        if not account.is_connected_event.is_set():
+            navigation_widget.set_left_icon(self.disconnected_icon)
+            return
         navigation_widget.set_left_icon(self.connected_icon)
         breed_id = account.game_state.fight.breed_id
         if breed_id <= 0:
             return
+        image = self._class_icons.request(breed_id)
+        if image is not None:
+            navigation_widget.set_left_icon(QIcon(QPixmap.fromImage(image)))
 
-        cached_icon = self._breed_icon_by_id.get(breed_id)
-        if cached_icon is not None:
-            navigation_widget.set_left_icon(cached_icon)
-            return
-
-        request = QNetworkRequest(QUrl(_BREED_ICON_URL_TEMPLATE.format(breed_id=breed_id)))
-        request.setTransferTimeout(10_000)
-        reply = self._breed_icon_network_manager.get(request)
-        if not reply:
-            return
-        reply.finished.connect(
-            partial(
-                self._on_breed_icon_reply_finished,
-                reply,
-                navigation_widget,
-                account,
-                breed_id,
-            )
-        )
-
-    def _on_breed_icon_reply_finished(
-        self,
-        reply: QNetworkReply,
-        navigation_widget: SidebarItem,
-        account: Bot,
-        breed_id: int,
-    ) -> None:
-        if reply.error() != QNetworkReply.NetworkError.NoError:
-            logger.warning(
-                "Cannot load breed icon %s for %s: %s",
-                breed_id,
-                account.account.apikey.login,
-                reply.errorString(),
-            )
-            reply.deleteLater()
-            return
-
-        pixmap = QPixmap()
-        if not pixmap.loadFromData(reply.readAll().data(), "PNG"):
-            logger.warning(
-                "Cannot load breed icon %s for %s: invalid PNG response",
-                breed_id,
-                account.account.apikey.login,
-            )
-            reply.deleteLater()
-            return
-
-        reply.deleteLater()
-        breed_icon = QIcon(pixmap)
-        self._breed_icon_by_id[breed_id] = breed_icon
-
-        login = account.account.apikey.login
-        if self.bots_by_login.get(login) is not account:
-            return
-        if not account.is_connected_event.is_set():
-            return
-        if account.game_state.fight.breed_id != breed_id:
-            return
-        navigation_widget.set_left_icon(breed_icon)
+    @pyqtSlot(int, QImage)
+    def _on_breed_icon_ready(self, breed_id: int, image: QImage) -> None:
+        icon = QIcon(QPixmap.fromImage(image))
+        for login, account in self.bots_by_login.items():
+            if (
+                account.is_connected_event.is_set()
+                and account.is_ready_to_play_event.is_set()
+                and account.game_state.fight.breed_id == breed_id
+            ):
+                self.sidebar_items_by_login[login].set_left_icon(icon)
 
     def remove_account(self, account: Bot) -> None:
         login = account.account.apikey.login

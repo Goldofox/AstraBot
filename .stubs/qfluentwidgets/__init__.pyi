@@ -2,16 +2,18 @@ from collections.abc import Callable
 from enum import Enum
 from typing import Any, overload
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
     QLabel,
     QLineEdit,
+    QListView,
     QListWidget,
     QPushButton,
     QScrollArea,
+    QStyledItemDelegate,
     QTableView,
     QTableWidget,
     QTreeWidget,
@@ -22,6 +24,16 @@ from qfluentwidgets.components.widgets.scroll_bar import (
     SmoothScrollBar as SmoothScrollBar,
     SmoothScrollDelegate as SmoothScrollDelegate,
 )
+
+class ListItemDelegate(QStyledItemDelegate):
+    hoverRow: int
+    pressedRow: int
+    selectedRows: set[int]
+    def __init__(self, parent: QListView) -> None: ...
+    def setHoverRow(self, row: int) -> None: ...
+    def setPressedRow(self, row: int) -> None: ...
+    def setSelectedRows(self, indexes: list[QModelIndex]) -> None: ...
+    def setCheckedColor(self, light: str | QColor, dark: str | QColor) -> None: ...
 
 class SmoothMode(Enum):
     NO_SMOOTH = 0

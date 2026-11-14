@@ -5,33 +5,22 @@ lazy from src.core.bot.bot import Bot
 from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
     ObjectItemInventory,
 )
-from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
 from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
     CharacterInventoryPositionEnum,
 )
-from PyQt6.QtCore import QEvent, QObject, QSize, QTimer, Qt, pyqtSlot
-from PyQt6.QtGui import QIcon, QImage, QPixmap, QShowEvent
+from PyQt6.QtCore import QTimer, pyqtSlot
+from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
-    QListView,
-    QListWidgetItem,
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import BodyLabel, CaptionLabel, ListWidget, SmoothMode
+from qfluentwidgets import BodyLabel, CaptionLabel
 
-from src.gui.services.item_icons import ICON_SIZE, item_icon_cache
+from src.gui.components.item_grid import FIVE_COLUMN_WIDTH, ItemGrid
 from src.gui.pages.farmer.equipment_panel_widget import (
     EquipmentPanelWidget,
-    get_item_name,
 )
-
-CARD_WIDTH = 90
-CARD_HEIGHT = 100
-CARD_SPACING = 6
-BAG_MAX_COLUMNS = 5
-
-BAG_MAX_WIDTH = BAG_MAX_COLUMNS * (CARD_WIDTH + CARD_SPACING) + CARD_SPACING + 20
 
 _NOT_EQUIPED = int(CharacterInventoryPositionEnum.InventoryPositionNotEquiped)
 
@@ -45,13 +34,6 @@ class InventoryTab(QWidget):
         self.inventory_weight: int = 0
         self.weight_max: int = 0
         self._render_dirty = False
-        self._icon_items: dict[int, list[QListWidgetItem]] = {}
-        self._icons = item_icon_cache()
-        self._icons.ready.connect(self._on_icon_ready)
-        self._icon_timer = QTimer(self)
-        self._icon_timer.setSingleShot(True)
-        self._icon_timer.setInterval(30)
-        self._icon_timer.timeout.connect(self._load_visible_icons)
         self._rebuild_timer = QTimer(self)
         self._rebuild_timer.setInterval(50)
         self._rebuild_timer.setSingleShot(True)
@@ -59,24 +41,8 @@ class InventoryTab(QWidget):
 
         self.equipment_panel = EquipmentPanelWidget(self)
 
-        self.list_widget = ListWidget(self)
-        self.list_widget.scrollDelegate.verticalSmoothScroll.setSmoothMode(SmoothMode.NO_SMOOTH)
-        self.list_widget.setViewMode(QListView.ViewMode.IconMode)
-        self.list_widget.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_widget.setMovement(QListView.Movement.Static)
-        self.list_widget.setSpacing(CARD_SPACING)
-        self.list_widget.setUniformItemSizes(True)
-        self.list_widget.setGridSize(QSize(CARD_WIDTH, CARD_HEIGHT))
-        self.list_widget.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
-        viewport = self.list_widget.viewport()
-        scrollbar = self.list_widget.verticalScrollBar()
-        assert viewport is not None and scrollbar is not None
-        self._viewport = viewport
-        viewport.installEventFilter(self)
-        scrollbar.valueChanged.connect(self._schedule_icons)
-
-        self.list_widget.setMaximumWidth(BAG_MAX_WIDTH)
-        self.list_widget.setStyleSheet("QListWidget { background-color: transparent; border: none; }")
+        self.list_widget = ItemGrid(self)
+        self.list_widget.setMaximumWidth(FIVE_COLUMN_WIDTH)
 
         self.weight_label = BodyLabel(text="Poids : 0/0", parent=self)
         self.loading_label = CaptionLabel(text="Loading inventory…", parent=self)
@@ -87,7 +53,7 @@ class InventoryTab(QWidget):
         bottom_layout.addStretch(1)
 
         content_layout = QHBoxLayout()
-        content_layout.addWidget(self.equipment_panel, 1)
+        content_layout.addWidget(self.equipment_panel)
         content_layout.addWidget(self.list_widget, 1)
 
         layout = QVBoxLayout()
@@ -125,7 +91,6 @@ class InventoryTab(QWidget):
         self.items_by_uid.clear()
         self._rebuild_timer.stop()
         if self.isVisible():
-            self._icon_items.clear()
             self.list_widget.clear()
             self.equipment_panel.set_items({})
         else:
@@ -162,56 +127,13 @@ class InventoryTab(QWidget):
         self.equipment_panel.set_items(equipped_by_position)
 
         self.list_widget.setUpdatesEnabled(False)
-        self._icon_items.clear()
         self.list_widget.clear()
         sorted_items = sorted(bag_items, key=lambda obj: obj.item.quantity, reverse=True)
         for object_item in sorted_items:
-            list_item = QListWidgetItem()
-            list_item.setSizeHint(QSize(CARD_WIDTH, CARD_HEIGHT))
-            list_item.setText(self._get_item_text(object_item))
-            list_item.setToolTip(get_item_name(object_item))
-            list_item.setData(Qt.ItemDataRole.UserRole, object_item.item.quantity)
-            item_data = DataReader().item_by_id.get(object_item.item.gid)
-            if item_data is not None and item_data.iconId is not None:
-                self._icon_items.setdefault(item_data.iconId, []).append(list_item)
-            self.list_widget.addItem(list_item)
+            self.list_widget.add_object_item(object_item)
         self.list_widget.setUpdatesEnabled(True)
         self._render_dirty = False
         self.loading_label.hide()
-        self._schedule_icons()
-
-    def _schedule_icons(self) -> None:
-        if self.isVisible():
-            self._icon_timer.start()
-
-    def eventFilter(self, a0: QObject | None, a1: QEvent | None) -> bool:
-        if a1 is not None and a1.type() in {QEvent.Type.Resize, QEvent.Type.Show}:
-            self._schedule_icons()
-        return super().eventFilter(a0, a1)
-
-    def _load_visible_icons(self) -> None:
-        if not self.isVisible():
-            return
-        viewport = self._viewport.rect()
-        for icon_id, items in self._icon_items.items():
-            if any(item.icon().isNull() and self.list_widget.visualItemRect(item).intersects(viewport) for item in items):
-                image = self._icons.request(icon_id)
-                if image is not None:
-                    self._on_icon_ready(icon_id, image)
-
-    @pyqtSlot(int, QImage)
-    def _on_icon_ready(self, icon_id: int, image: QImage) -> None:
-        items = self._icon_items.get(icon_id)
-        if not items or not self.isVisible():
-            return
-        icon = QIcon(QPixmap.fromImage(image))
-        for item in items:
-            item.setIcon(icon)
-            item.setText(str(item.data(Qt.ItemDataRole.UserRole)))
-
-    def _get_item_text(self, object_item: ObjectItemInventory) -> str:
-        item_name = get_item_name(object_item)
-        return f"{item_name} \n\n {object_item.item.quantity}"
 
     def connect_signals(self) -> None:
         if self.signals_connected:
@@ -223,6 +145,7 @@ class InventoryTab(QWidget):
         self.bot.inventory_signals.clear_inventory.connect(self.on_clear_inventory)
         self.bot.inventory_signals.inventory_weight.connect(self.on_inventory_weight_updated)
         self.bot.inventory_signals.weight_max.connect(self.on_weight_max_updated)
+        self.bot.game_info_signals.breed_id.connect(self.equipment_panel.set_breed)
         self.signals_connected = True
         self._resync_inventory()
 
@@ -236,18 +159,18 @@ class InventoryTab(QWidget):
         self.bot.inventory_signals.clear_inventory.disconnect(self.on_clear_inventory)
         self.bot.inventory_signals.inventory_weight.disconnect(self.on_inventory_weight_updated)
         self.bot.inventory_signals.weight_max.disconnect(self.on_weight_max_updated)
+        self.bot.game_info_signals.breed_id.disconnect(self.equipment_panel.set_breed)
         self.signals_connected = False
         self.items_by_uid.clear()
         self._rebuild_timer.stop()
-        self._icon_timer.stop()
-        self._icon_items.clear()
         self.list_widget.clear()
         self.equipment_panel.set_items({})
+        self.equipment_panel.set_breed(0)
         self.loading_label.hide()
 
     def _resync_inventory(self) -> None:
+        self.equipment_panel.set_breed(self.bot.game_state.fight.breed_id)
         self.items_by_uid.clear()
-        self._icon_items.clear()
         self.list_widget.clear()
         inventory_items = list(self.bot.game_state.inventory.objects_by_uid.values())
         if inventory_items:
@@ -257,4 +180,3 @@ class InventoryTab(QWidget):
         if self._render_dirty:
             self._rebuild_sorted_list()
         super().showEvent(a0)
-        self._schedule_icons()

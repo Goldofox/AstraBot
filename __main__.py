@@ -6,6 +6,12 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--icon-worker":
+    from src.services.icon_worker import main as run_icon_worker
+
+    run_icon_worker()
+    raise SystemExit(0)
+
 if (
     __name__ == "__main__"
     and getattr(sys, "frozen", False)
