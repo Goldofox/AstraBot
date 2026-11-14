@@ -271,9 +271,11 @@ class _Analyzer:
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             return self._annotation(node.left, scope, env) | self._annotation(node.right, scope, env)
         if isinstance(node, ast.Subscript):
+            name = ast.unparse(node.value).rsplit(".", 1)[-1]
+            if name == "Literal":
+                return _EMPTY
             parts = list(node.slice.elts) if isinstance(node.slice, ast.Tuple) else [node.slice]
             args = [self._annotation(part, scope, env) for part in parts]
-            name = ast.unparse(node.value).rsplit(".", 1)[-1]
             if name in {"list", "set", "frozenset", "Sequence", "Iterable", "Iterator", "Collection", "deque"}:
                 return _sequence(_union(args))
             if name in {"dict", "defaultdict", "Mapping", "MutableMapping"} and len(args) == 2:

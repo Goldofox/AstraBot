@@ -19,11 +19,11 @@ from DBDofusUnity.datas.protos.non_obf.game.connection_pb2 import (
 )
 from DBDofusUnity.datas.protos.non_obf.game.contact_pb2 import (
     AcquaintanceListRequest,
-    ContactLookRequest,
     ContactWarnOnAchievementCompleteSetRequest,
     ContactWarnOnPermanentDeathSetRequest,
     FriendListRequest,
     FriendSetStatusShareRequest,
+    FriendSetWarnOnConnectionRequest,
     FriendSetWarnOnLevelGainRequest,
 )
 from DBDofusUnity.datas.protos.non_obf.game.context_pb2 import ContextCreationRequest
@@ -132,10 +132,8 @@ class HandshakeBehavior(Behavior):
         self.event_manager.send(ContactWarnOnAchievementCompleteSetRequest(enable=False))
         self.event_manager.send(FriendSetStatusShareRequest(share=False))
         self.event_manager.send(FriendSetWarnOnLevelGainRequest(enable=False))
-        self.event_manager.send(
-            ContactLookRequest(contact_type=ContactLookRequest.SocialContactCategory.FRIEND)
-        )
         self.event_manager.send(ContactWarnOnPermanentDeathSetRequest(enable=False))
+        self.event_manager.send(FriendSetWarnOnConnectionRequest(enable=False))
         info_type = GuildInformationRequest.InformationType
         self.event_manager.send(GuildInformationRequest(information_type=info_type.INFO_PADDOCKS))
         self.event_manager.send(GuildInformationRequest(information_type=info_type.INFO_GENERAL))
