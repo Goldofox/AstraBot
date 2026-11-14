@@ -29,6 +29,7 @@ class ObjectExport(msgspec.Struct):
     type: str
     name: str | None
     files: list[str]
+    source_path: str | None = None
 
 
 class BundleExport(msgspec.Struct):
@@ -38,7 +39,54 @@ class BundleExport(msgspec.Struct):
 
 
 def _safe_name(name: str) -> str:
-    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)[:80].rstrip(" .")
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)[:80].rstrip(" .")
+    if re.fullmatch(r"CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9]", safe.split(".")[0], re.IGNORECASE):
+        safe = f"_{safe}"
+    return safe
+
+
+class ContainerPointer(msgspec.Struct):
+    m_FileID: int
+    m_PathID: int
+
+
+class ContainerEntry(msgspec.Struct):
+    asset: ContainerPointer
+
+
+class AssetBundlePaths(msgspec.Struct):
+    m_Container: list[tuple[str, ContainerEntry]]
+
+
+def _source_paths(objects: list[ObjectReader[Any]]) -> dict[tuple[int, int], str]:
+    paths: dict[tuple[int, int], str] = {}
+    for obj in objects:
+        if obj.type.name != "AssetBundle":
+            continue
+        try:
+            bundle = msgspec.convert(obj.parse_as_dict(), type=AssetBundlePaths)
+        except Exception:
+            continue
+        for path, entry in bundle.m_Container:
+            if entry.asset.m_FileID == 0:
+                paths.setdefault((id(obj.assets_file), entry.asset.m_PathID), path)
+    return paths
+
+
+def _readable_path(source_path: str | None, name: str | None, path_id: int) -> Path:
+    if source_path:
+        parts = source_path.replace("\\", "/").split("/")
+        if parts[0].lower() == "assets":
+            parts.pop(0)
+        if parts and parts[0].lower() == "builtassets":
+            parts.pop(0)
+        if parts:
+            parts[-1] = Path(parts[-1]).stem
+        if parts and all(part not in {"", ".", ".."} for part in parts):
+            safe_parts = [_safe_name(part) for part in parts]
+            if all(safe_parts):
+                return Path(*safe_parts)
+    return Path(_safe_name(name or "") or str(path_id))
 
 
 class ExportWriteError(OSError):
@@ -74,18 +122,18 @@ def _native_assets(obj: ObjectReader[Any], base: Path) -> Iterator[tuple[Path, b
         return
     data: Any = obj.parse_as_object()
     if kind in {"Sprite", "Texture2D"}:
-        yield base.with_suffix(".png"), _png_bytes(data.image)
+        yield base.with_name(base.name + ".png"), _png_bytes(data.image)
     elif kind == "Texture2DArray":
         for index, image in enumerate(data.images):
             yield base.with_name(f"{base.name}_{index}.png"), _png_bytes(image)
     elif kind == "TextAsset":
-        yield base.with_suffix(".bytes"), data.m_Script.encode("utf-8", "surrogateescape")
+        yield base.with_name(base.name + ".bytes"), data.m_Script.encode("utf-8", "surrogateescape")
     elif kind in {"Mesh", "Shader"}:
-        path = base.with_suffix(".obj" if kind == "Mesh" else ".shader")
+        path = base.with_name(base.name + (".obj" if kind == "Mesh" else ".shader"))
         yield path, data.export().encode("utf-8", "surrogateescape")
     elif kind == "Font" and data.m_FontData:
         font = bytes(data.m_FontData)
-        yield base.with_suffix(".otf" if font.startswith(b"OTTO") else ".ttf"), font
+        yield base.with_name(base.name + (".otf" if font.startswith(b"OTTO") else ".ttf")), font
     elif kind == "AudioClip":
         samples: dict[str, bytes] = data.samples
         if not samples:
@@ -98,10 +146,13 @@ def export_asset_bundle(source: Path, destination: Path, *, game_dir: Path) -> B
     environment = load_bundle(source, game_dir=game_dir)
     report = BundleExport(str(source), [], [])
     asset_indices = {id(asset): index for index, asset in enumerate(environment.assets)}
+    source_paths = _source_paths(environment.objects)
+    used_paths: set[str] = set()
     for obj in environment.objects:
         name: str | None = None
         files: list[Path] = []
         base = destination / f"asset_{asset_indices[id(obj.assets_file)]}" / obj.type.name / str(obj.path_id)
+        source_path = source_paths.get((id(obj.assets_file), obj.path_id))
         try:
             data = obj.parse_as_dict()
             candidate = data.get("m_Name")
@@ -109,7 +160,8 @@ def export_asset_bundle(source: Path, destination: Path, *, game_dir: Path) -> B
             encoded = msgspec.json.encode(data)
         except Exception as error:
             report.issues.append(ExportIssue("typetree", str(error), obj.path_id))
-            raw_path = base.with_suffix(".bin")
+            raw_path = base.with_name(base.name + ".bin")
+            used_paths.add(base.as_posix().casefold())
             try:
                 raw = obj.get_raw_data()
             except Exception as raw_error:
@@ -118,7 +170,17 @@ def export_asset_bundle(source: Path, destination: Path, *, game_dir: Path) -> B
                 _write_asset(raw_path, raw)
                 files.append(raw_path)
         else:
-            json_path = base.with_suffix(".json")
+            root = base.parent
+            base = root / _readable_path(source_path, name, obj.path_id)
+            candidate_base = base
+            collision = 0
+            while candidate_base.as_posix().casefold() in used_paths:
+                collision += 1
+                suffix = f"__{obj.path_id}" if collision == 1 else f"__{obj.path_id}_{collision}"
+                candidate_base = base.with_name(base.name + suffix)
+            base = candidate_base
+            used_paths.add(base.as_posix().casefold())
+            json_path = base.with_name(base.name + ".json")
             _write_asset(json_path, encoded)
             files.append(json_path)
         try:
@@ -136,6 +198,7 @@ def export_asset_bundle(source: Path, destination: Path, *, game_dir: Path) -> B
                 obj.type.name,
                 name,
                 [path.relative_to(destination).as_posix() for path in files],
+                source_path,
             )
         )
     _write_asset(destination / "index.json", msgspec.json.encode(report))
@@ -144,7 +207,12 @@ def export_asset_bundle(source: Path, destination: Path, *, game_dir: Path) -> B
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Export Unity assets from folders or bundle files.")
-    parser.add_argument("sources", nargs="*", type=Path, help="Folders (recursive) or bundle files; defaults to StreamingAssets")
+    parser.add_argument(
+        "sources",
+        nargs="*",
+        type=Path,
+        help="Folders (recursive) or bundle files; defaults to StreamingAssets",
+    )
     args = parser.parse_args(argv if argv is not None else [])
     game_dir = OBF_GAME_DIR.resolve()
     streaming = game_dir / "Dofus_Data" / "StreamingAssets"

@@ -4,11 +4,13 @@ from DBDofusUnity.dofus_unity_reader.data_center.i18n import I18N
 from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
     CharacterInventoryPositionEnum,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtGui import QImage, QPixmap, QShowEvent
 from PyQt6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CaptionLabel
 
 from src.gui.components.group_box import GroupBox
+from src.gui.services.item_icons import ICON_SIZE, item_icon_cache
 
 _EMPTY_VALUE = "—"
 
@@ -43,6 +45,8 @@ def get_item_name(object_item: ObjectItemInventory) -> str:
 class _SlotWidget(QWidget):
     def __init__(self, label: str, parent: QWidget | None = None):
         super().__init__(parent=parent)
+        self.icon_id: int | None = None
+        self._value: str | None = None
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(0)
@@ -56,15 +60,26 @@ class _SlotWidget(QWidget):
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setWordWrap(True)
         self.value_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.value_label.setMinimumHeight(ICON_SIZE)
         layout.addWidget(self.value_label)
 
-    def set_value(self, value: str | None) -> None:
+    def set_value(self, value: str | None, icon_id: int | None) -> None:
+        if (value, icon_id) == (self._value, self.icon_id):
+            return
+        self._value = value
+        self.icon_id = icon_id
         self.value_label.setText(value if value else _EMPTY_VALUE)
+        self.value_label.setToolTip(value or "")
+
+    def set_image(self, image: QImage) -> None:
+        self.value_label.setPixmap(QPixmap.fromImage(image))
 
 
 class EquipmentPanelWidget(GroupBox):
     def __init__(self, parent: QWidget | None = None):
         super().__init__("", parent=parent)
+        self._icons = item_icon_cache()
+        self._icons.ready.connect(self._on_icon_ready)
 
         grid = QGridLayout()
         grid.setSpacing(6)
@@ -79,4 +94,28 @@ class EquipmentPanelWidget(GroupBox):
     def set_items(self, items_by_position: dict[int, ObjectItemInventory]) -> None:
         for position, slot in self.slot_by_position.items():
             object_item = items_by_position.get(position)
-            slot.set_value(get_item_name(object_item) if object_item else None)
+            item_data = DataReader().item_by_id.get(object_item.item.gid) if object_item else None
+            slot.set_value(
+                get_item_name(object_item) if object_item else None,
+                item_data.iconId if item_data is not None else None,
+            )
+        self._load_icons()
+
+    def _load_icons(self) -> None:
+        if not self.isVisible():
+            return
+        for slot in self.slot_by_position.values():
+            if slot.icon_id is not None:
+                image = self._icons.request(slot.icon_id)
+                if image is not None:
+                    slot.set_image(image)
+
+    @pyqtSlot(int, QImage)
+    def _on_icon_ready(self, icon_id: int, image: QImage) -> None:
+        for slot in self.slot_by_position.values():
+            if slot.icon_id == icon_id:
+                slot.set_image(image)
+
+    def showEvent(self, a0: QShowEvent | None) -> None:
+        super().showEvent(a0)
+        self._load_icons()

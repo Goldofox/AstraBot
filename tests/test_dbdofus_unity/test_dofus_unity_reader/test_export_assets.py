@@ -9,6 +9,8 @@ from PIL import Image
 from scripts.data import export_assets
 
 
+# C:/Users/Valentin/AppData/Local/Ankama/Dofus-dofus3/Dofus_Data/StreamingAssets/Content/Picto/Items
+
 @pytest.fixture
 def text_environment(monkeypatch: pytest.MonkeyPatch) -> Mock:
     asset = SimpleNamespace(name="CAB-test")
@@ -24,7 +26,7 @@ def text_environment(monkeypatch: pytest.MonkeyPatch) -> Mock:
     return obj
 
 
-def test_export_preserves_textasset_bytes_and_indexes_names_without_using_them_as_paths(
+def test_export_preserves_textasset_bytes_and_sanitizes_names(
     tmp_path: Path, text_environment: Mock
 ) -> None:
     destination = tmp_path / "export"
@@ -32,7 +34,7 @@ def test_export_preserves_textasset_bytes_and_indexes_names_without_using_them_a
 
     assert report.issues == []
     assert report.objects[0].name == "../../CON"
-    assert (destination / "asset_0/TextAsset/-42.bytes").read_bytes() == b"\x00\xff\x80Dofus"
+    assert (destination / "asset_0/TextAsset/.._.._CON.bytes").read_bytes() == b"\x00\xff\x80Dofus"
     assert msgspec.json.decode((destination / "index.json").read_bytes(), type=export_assets.BundleExport) == report
     assert all((destination / name).is_relative_to(destination) for name in report.objects[0].files)
 
@@ -64,8 +66,8 @@ def test_every_run_exports_all_streamingassets_bundles_including_native_files(
     output = tmp_path / "bundles/exports"
 
     assert export_assets.main() == 0
-    media = output / "test.bundle/asset_0/TextAsset/-42.bytes"
-    nested_media = output / "nested/other.bundle/asset_0/TextAsset/-42.bytes"
+    media = output / "test.bundle/asset_0/TextAsset/.._.._CON.bytes"
+    nested_media = output / "nested/other.bundle/asset_0/TextAsset/.._.._CON.bytes"
     assert media.read_bytes() == nested_media.read_bytes() == b"\x00\xff\x80Dofus"
     media.write_bytes(b"stale export")
     nested_media.unlink()
@@ -91,7 +93,7 @@ def test_missing_native_resource_does_not_prevent_exporting_later_objects(
     report = export_assets.export_asset_bundle(tmp_path / "source.bundle", tmp_path, game_dir=tmp_path)
 
     assert report.issues == [export_assets.ExportIssue("native", "missing.resS", -42)]
-    assert (tmp_path / "asset_0/TextAsset/43.bytes").read_bytes() == b"exported"
+    assert (tmp_path / "asset_0/TextAsset/text.bytes").read_bytes() == b"exported"
     assert msgspec.json.decode((tmp_path / "index.json").read_bytes(), type=export_assets.BundleExport) == report
 
 
@@ -107,7 +109,7 @@ def test_partial_texture_array_keeps_successful_layers_in_the_index(
 
     report = export_assets.export_asset_bundle(tmp_path / "source.bundle", tmp_path, game_dir=tmp_path)
 
-    image_path = "asset_0/Texture2DArray/-42_0.png"
+    image_path = "asset_0/Texture2DArray/.._.._CON_0.png"
     assert image_path in report.objects[0].files
     with Image.open(tmp_path / image_path) as image:
         assert image.size == (2, 2)
@@ -133,7 +135,7 @@ def test_missing_input_bundle_is_reported_and_remaining_bundles_are_exported(
     assert export_assets.main() == 1
 
     output = tmp_path / "bundles/exports"
-    assert (output / "second.bundle/asset_0/TextAsset/-42.bytes").read_bytes() == b"\x00\xff\x80Dofus"
+    assert (output / "second.bundle/asset_0/TextAsset/.._.._CON.bytes").read_bytes() == b"\x00\xff\x80Dofus"
     summary = msgspec.json.decode((output / "report.json").read_bytes())
     assert summary["counts"]["failed"] == 1
     assert summary["counts"]["bundles"] == 1
@@ -147,3 +149,49 @@ def test_output_write_failure_stops_export(
 
     with pytest.raises(export_assets.ExportWriteError, match="disk full"):
         export_assets.export_asset_bundle(tmp_path / "source.bundle", tmp_path, game_dir=tmp_path)
+
+
+def test_export_uses_container_paths_and_keeps_original_path_in_index(
+    tmp_path: Path, text_environment: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle = Mock()
+    bundle.type.name = "AssetBundle"
+    bundle.path_id = 1
+    bundle.assets_file = text_environment.assets_file
+    source_path = "Assets/BuiltAssets/classes/symbol.4.png"
+    bundle.parse_as_dict.return_value = {
+        "m_Container": [(source_path, {"asset": {"m_FileID": 0, "m_PathID": -42}})]
+    }
+    environment = SimpleNamespace(assets=[bundle.assets_file], objects=[text_environment, bundle])
+    monkeypatch.setattr(export_assets, "load_bundle", Mock(return_value=environment))
+
+    report = export_assets.export_asset_bundle(tmp_path / "source.bundle", tmp_path, game_dir=tmp_path)
+
+    assert report.issues == []
+    assert report.objects[0].source_path == source_path
+    assert (tmp_path / "asset_0/TextAsset/classes/symbol.4.bytes").read_bytes() == b"\x00\xff\x80Dofus"
+
+
+def test_export_disambiguates_names_case_insensitively(
+    tmp_path: Path, text_environment: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    text_environment.parse_as_dict.return_value = {"m_Name": "icon"}
+    other = Mock()
+    other.type.name = "TextAsset"
+    other.path_id = 43
+    other.assets_file = text_environment.assets_file
+    other.parse_as_dict.return_value = {"m_Name": "ICON"}
+    other.parse_as_object.return_value = SimpleNamespace(m_Script="other")
+    environment = SimpleNamespace(assets=[other.assets_file], objects=[text_environment, other])
+    monkeypatch.setattr(export_assets, "load_bundle", Mock(return_value=environment))
+
+    report = export_assets.export_asset_bundle(tmp_path / "source.bundle", tmp_path, game_dir=tmp_path)
+
+    assert report.issues == []
+    assert (tmp_path / "asset_0/TextAsset/icon.bytes").read_bytes() == b"\x00\xff\x80Dofus"
+    assert (tmp_path / "asset_0/TextAsset/ICON__43.bytes").read_bytes() == b"other"
+
+
+@pytest.mark.parametrize("source_path", ["../../outside.png", "Assets/BuiltAssets/../outside.png"])
+def test_export_rejects_traversal_in_container_paths(source_path: str) -> None:
+    assert export_assets._readable_path(source_path, "CON", 42) == Path("_CON")
