@@ -32,7 +32,7 @@ from DBDofusUnity.proto_mapper_assembly.helpers.obf_game_snapshot import (
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPairsConfig
 from DBDofusUnity.proto_mapper_assembly.pipeline import run_pipeline
-from scripts.mapping.ida_tracer_lib.main import run_ida_script
+from scripts.mapping.ida_tracer.main import run_ida_script
 
 
 @dataclass(frozen=True)
@@ -116,7 +116,6 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
             )
 
         if use_obf and obf_dir is not None:
-            # Archived tracing must skip live-workspace steps that clear pins and overwrite current mappings.
             _record_dump_cs_hash(target)
             _record_game_assembly_mtime(target)
             return

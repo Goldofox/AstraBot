@@ -5,15 +5,12 @@ lazy from src.core.bot.bot import Bot
 from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
     ObjectItemInventory,
 )
-from PyQt6.QtCore import QSize, QTimer, pyqtSlot
+from PyQt6.QtCore import QTimer, pyqtSlot
 from PyQt6.QtGui import QShowEvent
-from PyQt6.QtWidgets import QListView, QListWidgetItem, QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel, ListWidget, SmoothMode
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from qfluentwidgets import CaptionLabel
 
-from src.gui.consts import CARD_WIDTH
-from src.gui.pages.farmer.equipment_panel_widget import get_item_name
-
-CARD_HEIGHT = 80
+from src.gui.components.item_grid import ItemGrid
 
 
 class BankTab(QWidget):
@@ -28,16 +25,7 @@ class BankTab(QWidget):
         self._rebuild_timer.setSingleShot(True)
         self._rebuild_timer.timeout.connect(self._rebuild_sorted_list)
 
-        self.list_widget = ListWidget(self)
-        self.list_widget.scrollDelegate.verticalSmoothScroll.setSmoothMode(SmoothMode.NO_SMOOTH)
-        self.list_widget.setViewMode(QListView.ViewMode.IconMode)
-        self.list_widget.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_widget.setMovement(QListView.Movement.Static)
-        self.list_widget.setSpacing(10)
-        self.list_widget.setUniformItemSizes(True)
-        self.list_widget.setGridSize(QSize(CARD_WIDTH, CARD_HEIGHT))
-
-        self.list_widget.setStyleSheet("QListWidget { background-color: transparent; border: none; }")
+        self.list_widget = ItemGrid(self)
         self.loading_label = CaptionLabel(text="Loading bank…", parent=self)
         self.loading_label.hide()
 
@@ -76,17 +64,10 @@ class BankTab(QWidget):
         self.list_widget.clear()
         sorted_items = sorted(self.items_by_uid.values(), key=lambda obj: obj.item.quantity, reverse=True)
         for object_item in sorted_items:
-            list_item = QListWidgetItem()
-            list_item.setSizeHint(QSize(CARD_WIDTH, CARD_HEIGHT))
-            list_item.setText(self._get_item_text(object_item))
-            self.list_widget.addItem(list_item)
+            self.list_widget.add_object_item(object_item)
         self.list_widget.setUpdatesEnabled(True)
         self._render_dirty = False
         self.loading_label.hide()
-
-    def _get_item_text(self, object_item: ObjectItemInventory) -> str:
-        item_name = get_item_name(object_item)
-        return f"{item_name} \n\n {object_item.item.quantity}"
 
     def connect_signals(self) -> None:
         if self.signals_connected:

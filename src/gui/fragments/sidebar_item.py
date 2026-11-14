@@ -1,12 +1,11 @@
 import os
 
 from PyQt6.QtCore import QMargins, QPoint, QRect, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QIcon, QPainter, QPaintEvent
+from PyQt6.QtGui import QColor, QCursor, QIcon, QPainter, QPaintEvent, QPixmap
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -58,6 +57,7 @@ class SidebarItem(NavigationWidget):
         self.header_layout = QHBoxLayout()
         self.header_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.header_layout.setContentsMargins(4, 0, 12, 0)
+        self.header_layout.setSpacing(6)
 
         self.controls_layout = QHBoxLayout()
         self.controls_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -72,14 +72,16 @@ class SidebarItem(NavigationWidget):
         self.main_layout.addLayout(self.controls_layout)
 
         self._left_icon = QLabel(self)
+        self._left_icon.setFixedSize(24, 24)
+        self._left_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._sync_left_icon()
         self.header_layout.addWidget(self._left_icon)
 
         self._title = BodyLabel(title, self)
-        self.header_layout.addWidget(self._title)
-
-        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-        self.header_layout.addItem(spacer)
+        self._title.setMinimumWidth(0)
+        self._title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self._title.setToolTip(title)
+        self.header_layout.addWidget(self._title, 1)
 
         self._right_icon = QLabel(self)
         battle_icon = QIcon(os.path.join(RESOURCE_FOLDER, "icons", "combat.png"))
@@ -194,16 +196,18 @@ class SidebarItem(NavigationWidget):
         self._sync_left_icon()
 
     def _sync_left_icon(self) -> None:
-        pixmap = self._left_icon_source.pixmap(16)
+        pixmap = QPixmap(24, 24)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.drawPixmap(1, 1, self._left_icon_source.pixmap(18))
         if self._is_connected:
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(0, 0, 0, 180))
-            painter.drawEllipse(9, 9, 7, 7)
+            painter.drawEllipse(18, 18, 6, 6)
             painter.setBrush(QColor(0, 230, 118))
-            painter.drawEllipse(10, 10, 5, 5)
-            painter.end()
+            painter.drawEllipse(19, 19, 4, 4)
+        painter.end()
         self._left_icon.setPixmap(pixmap)
 
     def _margins(self) -> QMargins:
@@ -218,6 +222,7 @@ class SidebarItem(NavigationWidget):
 
     def set_title(self, text: str) -> None:
         self._title.setText(text)
+        self._title.setToolTip(text)
 
     def populate_connection_mode(self, selected_mode: str) -> None:
         for mode_index in range(self._mode_combo.count()):

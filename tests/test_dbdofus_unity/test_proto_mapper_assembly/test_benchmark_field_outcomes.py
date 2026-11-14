@@ -2,9 +2,11 @@ from pathlib import Path
 
 import pytest
 
+from DBDofusUnity.proto_mapper_assembly.interfaces.auto_mode_mapping_contract import AutoModeMappingContract
+
 from DBDofusUnity.proto_mapper_assembly.interfaces.game_mappings import GameMappingsDocument
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPair, PinnedPairsConfig
-from scripts.mapping import benchmark_cross_build as benchmark
+from scripts.mapping.debug import benchmark_cross_build as benchmark
 from tests.fixtures.proto_mapper.pipeline_builders import detailed_game_mapping_entry
 
 
@@ -18,7 +20,10 @@ def test_required_fields_detect_wrong_message_and_missing_reference(
         '"messages":[{"message":".Clear","fields":["value","unknown"]}]}',
         encoding="utf-8",
     )
-    monkeypatch.setattr(benchmark, "AUTO_MODE_MAPPING_CONTRACT_FILE", contract_path)
+    monkeypatch.setattr(
+        benchmark, "generate_auto_mode_mapping_contract",
+        lambda: AutoModeMappingContract.model_validate_json(contract_path.read_text(encoding="utf-8")),
+    )
     reference = GameMappingsDocument(root={".Clear": detailed_game_mapping_entry("old", {"x": "value"})})
     candidate = GameMappingsDocument(root={".Clear": detailed_game_mapping_entry("wrong", {"x": "value"})})
     messages, unverified, fields = benchmark._score_current_requirements(
@@ -58,16 +63,17 @@ def test_missing_message_is_not_a_correct_field_match() -> None:
     assert outcome.status == "unmapped"
 
 
-def test_archived_benchmark_uses_current_contract(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_archived_benchmark_uses_current_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     contract_path = tmp_path / "contract.json"
     contract_path.write_text(
         '{"version":3,"thresholds":{"message_score":0.5,"match_margin":0.05,"field_score":0.5},'
         '"messages":[{"message":".protocol.Required"}]}',
         encoding="utf-8",
     )
-    monkeypatch.setattr(benchmark, "AUTO_MODE_MAPPING_CONTRACT_FILE", contract_path)
+    monkeypatch.setattr(
+        benchmark, "generate_auto_mode_mapping_contract",
+        lambda: AutoModeMappingContract.model_validate_json(contract_path.read_text(encoding="utf-8")),
+    )
     reference_path = tmp_path / benchmark.GAME_MAPPINGS_RELATIVE_PATH
     reference_path.parent.mkdir(parents=True, exist_ok=True)
     reference_path.write_text(

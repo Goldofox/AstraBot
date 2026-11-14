@@ -13,9 +13,11 @@ Repeat to persist field signatures; nested messages or changed shapes may need a
 - Check whether an obfuscated class is already mapped before creating an unknown message.
 - Keep only fields observed non-default at runtime or proved by IDA tracing.
 - Parent inference can supersede pinned nested pairs. Do not force fields with indistinguishable shapes, especially multiple `float` fields.
-- Do not hand-edit generated `excluded_non_obf.json`, `new_dump_cs.json`, Python protobuf bindings, or `game_mappings*.json`; update their sources and regenerate.
+- Do not hand-edit generated `Ankama.Dofus.Protocol.Game.override.json`, Python protobuf bindings, or `game_mappings*.json`; update their sources and regenerate.
 
 ## Validators and IDA
+
+The mapping contract is inferred from `src/` before each mapping run. Keep protobuf bindings up to date; unresolved protobuf field access stops the run with a source location.
 
 - Validators return `False` for invalid input; let unexpected exceptions propagate. Fields in `global_validators` and `set_validators` cannot be nested: nested messages are not remapped.
 - Key `VALIDATORS_ON_FIELD` by generated protobuf classes (`type[Message]`), with string field names checked against descriptors at import. Group entries by source module.

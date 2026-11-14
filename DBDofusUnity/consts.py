@@ -34,7 +34,6 @@ IDA_EXE = get_path_from_env("IDA_EXE", _MISSING_GAME_TOOLCHAIN_PATH / "ida")
 DATA_ROOT: Path = PROJECT_ROOT / "datas"
 BUNDLES_ROOT: Path = DATA_ROOT / "bundles"
 DATA_BUNDLES_ROOT: Path = BUNDLES_ROOT / "data"
-MAP_BUNDLES_ROOT: Path = BUNDLES_ROOT / "map"
 MAPS_ARCHIVE_PATH: Path = BUNDLES_ROOT / "maps.zip"
 STANDALONE_BUNDLES_ROOT: Path = BUNDLES_ROOT / "standalone"
 I18N_OUTPUT_PATH: Path = BUNDLES_ROOT / "i18n.json"
@@ -45,10 +44,6 @@ GAME_MAPPINGS_DETAILED_JSON_FILE: Path = PROTOS_ROOT / "game_mappings_detailed.j
 DOFUS_ASSETS_FOLDER: Path = OBF_GAME_DIR / "Dofus_Data" / "StreamingAssets"
 DOFUS_CONTENT_FOLDER: Path = DOFUS_ASSETS_FOLDER / "Content"
 I18N_PATH: Path = DOFUS_CONTENT_FOLDER / "I18n" / "fr.bin"
-UABEA_PATH_EXE: Path = get_path_from_env(
-    "UABEA_EXECUTABLE",
-    PROJECT_ROOT / "UABEA" / "UABEAvalonia" / "bin" / "Debug" / "net6.0" / "UABEAvalonia.exe",
-)
 PATH_STANDALONE_BUNDLES: Path = get_path_from_env(
     "PATH_STANDALONE_BUNDLES",
     DOFUS_ASSETS_FOLDER / "aa" / "StandaloneWindows64",
@@ -91,21 +86,21 @@ NON_OBF_GAME_ASSEMBLY_DLL_I64: Path = NON_OBF_GAME_DIR / "GameAssembly.dll.i64"
 NON_OBF_IL2CPP_METADATA_FILE: Path = NON_OBF_GAME_DIR / "global-metadata.dat"
 
 PROTO_MAPPER_DATA_ROOT: Path = DATA_ROOT / "proto_mapper"
-AUTO_MODE_MAPPING_CONTRACT_FILE: Path = PROTO_MAPPER_DATA_ROOT / "auto_mode_mapping_contract.json"
 PINNED_PAIRS_FILE: Path = PROTO_MAPPER_DATA_ROOT / "pinned_pairs.json"
-CAPTURE_SEQUENCE_HINTS_FILE: Path = PROTO_MAPPER_DATA_ROOT / "capture_sequence_hints.json"
-EXCLUDED_NON_OBF_FILE: Path = PROTO_MAPPER_DATA_ROOT / "excluded_non_obf.json"
+CAPTURE_SEQUENCE_HINTS_FILE: Path = (
+    PROJECT_ROOT / "proto_mapper_assembly" / "validators" / "capture_sequence_hints.json"
+)
 OBFUSCATED_DATA_DIR: Path = PROTO_MAPPER_DATA_ROOT / "obf"
 NON_OBFUSCATED_DATA_DIR: Path = PROTO_MAPPER_DATA_ROOT / "non_obf"
 OBF_PROTO_OUTPUT: Path = PROTOS_ROOT / "obf" / "game"
 NON_OBF_PROTO_OUTPUT: Path = PROTOS_ROOT / "non_obf" / "game"
-NON_OBF_NEW_DUMP_CS_FILE: Path = NON_OBFUSCATED_DATA_DIR / "new_dump_cs.json"
+NON_OBF_NEW_DUMP_CS_FILE: Path = NON_OBFUSCATED_DATA_DIR / "Ankama.Dofus.Protocol.Game.override.json"
 
 RUNTIME_DATA_FILE: Path = PROTO_MAPPER_DATA_ROOT / "instancied_msg_infos.json"
 
 OBF_PROTO_ACCESSES_FILE: Path = OBFUSCATED_DATA_DIR / "proto_accesses.json"
 NON_OBF_PROTO_ACCESSES_FILE: Path = NON_OBFUSCATED_DATA_DIR / "proto_accesses.json"
-NON_OBF_SIGNATURE_OVERRIDES_FILE: Path = NON_OBFUSCATED_DATA_DIR / "messages_access_signature_override.json"
+NON_OBF_SIGNATURE_OVERRIDES_FILE: Path = NON_OBFUSCATED_DATA_DIR / "proto_accesses.override.json"
 OBF_PROTOCOL_GAME_DUMP_CS_FILE: Path = OBFUSCATED_DATA_DIR / PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH
 NON_OBF_PROTOCOL_GAME_DUMP_CS_FILE: Path = NON_OBFUSCATED_DATA_DIR / PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH
 
