@@ -8,7 +8,7 @@ Run commands from the repository root:
 
 - Targeted tests: `uv run pytest tests/path/to/test_file.py`.
 - Lint without edits: `uv run ruff check .`.
-- Types: `uv run pyright`.
+- Types: `uv run ty check`.
 - Final gate for code changes: `uv run poe verify` (also applies Ruff fixes).
 
 During iteration, run only the relevant check or test. For documentation-only changes, verify paths, commands, and `git diff --check`; application tests are unnecessary.

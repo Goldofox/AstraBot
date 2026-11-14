@@ -91,7 +91,7 @@ This builds Il2CppInspector and protodec.
 
 ```powershell
 uv run ruff check .
-uv run pyright
+uv run ty check
 uv run pytest tests
 ```
 
