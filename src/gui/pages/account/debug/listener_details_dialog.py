@@ -18,7 +18,7 @@ def _get_callback_source_target(
     return callback
 
 
-class ListenerDetailsBox(MessageBoxBase):
+class ListenerDetailsDialog(MessageBoxBase):
     def __init__(self, listener: Listener[Message], parent: QWidget) -> None:
         super().__init__(parent=parent)
         self.title_label = SubtitleLabel("Listener details", parent=self)
@@ -28,7 +28,7 @@ class ListenerDetailsBox(MessageBoxBase):
         timeout_str = str(listener.timeout) if listener.timeout else "None"
 
         header_text = f"""
-        Origine : {originator_name}
+        Source: {originator_name}
         Message type: {msg_type_name}
         Priority: {listener.priority}
         One-time: {"Yes" if listener.once else "No"}

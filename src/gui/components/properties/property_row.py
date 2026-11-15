@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CaptionLabel
 
 
-class PropertyWidget(QWidget):
+class PropertyRow(QWidget):
     def __init__(
         self,
         key: str,
@@ -15,12 +15,12 @@ class PropertyWidget(QWidget):
 
         if vertical:
             layout = QVBoxLayout()
-            layout.setContentsMargins(0, 2, 0, 2)
-            layout.setSpacing(0)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(3)
             label_header = CaptionLabel(text=key, parent=self)
         else:
             layout = QHBoxLayout()
-            label_header = BodyLabel(text=key + " : ", parent=self)
+            label_header = BodyLabel(text=key + ": ", parent=self)
 
         self._layout = layout
         self.setLayout(layout)

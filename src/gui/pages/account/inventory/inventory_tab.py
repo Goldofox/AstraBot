@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-lazy from src.core.bot.bot import Bot
-
-from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
-    ObjectItemInventory,
-)
-from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
-    CharacterInventoryPositionEnum,
-)
-from PyQt6.QtCore import QTimer, pyqtSlot
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -17,10 +9,18 @@ from PyQt6.QtWidgets import (
 )
 from qfluentwidgets import BodyLabel, CaptionLabel
 
-from src.gui.components.item_grid import FIVE_COLUMN_WIDTH, ItemGrid
-from src.gui.pages.farmer.equipment_panel_widget import (
-    EquipmentPanelWidget,
+from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
+    ObjectItemInventory,
 )
+from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
+    CharacterInventoryPositionEnum,
+)
+from src.gui.components.item_grid import ItemGrid, ItemGridContainer
+from src.gui.pages.account.inventory.bank_panel import BankPanel
+from src.gui.pages.account.inventory.equipment_panel import (
+    EquipmentPanel,
+)
+lazy from src.core.bot.bot import Bot
 
 _NOT_EQUIPED = int(CharacterInventoryPositionEnum.InventoryPositionNotEquiped)
 
@@ -39,12 +39,10 @@ class InventoryTab(QWidget):
         self._rebuild_timer.setSingleShot(True)
         self._rebuild_timer.timeout.connect(self._rebuild_sorted_list)
 
-        self.equipment_panel = EquipmentPanelWidget(self)
+        self.equipment_panel = EquipmentPanel(self)
 
         self.list_widget = ItemGrid(self)
-        self.list_widget.setMaximumWidth(FIVE_COLUMN_WIDTH)
-
-        self.weight_label = BodyLabel(text="Poids : 0/0", parent=self)
+        self.weight_label = BodyLabel(text="Weight: 0/0", parent=self)
         self.loading_label = CaptionLabel(text="Loading inventory…", parent=self)
         self.loading_label.hide()
         bottom_layout = QHBoxLayout()
@@ -54,12 +52,19 @@ class InventoryTab(QWidget):
 
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.equipment_panel)
-        content_layout.addWidget(self.list_widget, 1)
+        inventory_layout = QVBoxLayout()
+        title = BodyLabel(text="Inventory", parent=self)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        inventory_layout.addWidget(title)
+        inventory_layout.addWidget(ItemGridContainer(self.list_widget, self), 1)
+        inventory_layout.addLayout(bottom_layout)
+        content_layout.addLayout(inventory_layout, 1)
+        self.bank_panel = BankPanel(bot, self)
+        content_layout.addWidget(self.bank_panel, 1)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.addLayout(content_layout, 1)
-        layout.addLayout(bottom_layout, 0)
 
     @pyqtSlot(ObjectItemInventory)
     def on_added_object_item(self, object_item: ObjectItemInventory):
@@ -107,7 +112,7 @@ class InventoryTab(QWidget):
         self._refresh_weight_label()
 
     def _refresh_weight_label(self) -> None:
-        self.weight_label.setText(f"Poids : {self.inventory_weight}/{self.weight_max}")
+        self.weight_label.setText(f"Weight: {self.inventory_weight}/{self.weight_max}")
 
     def _schedule_rebuild(self) -> None:
         self._render_dirty = True
@@ -145,7 +150,7 @@ class InventoryTab(QWidget):
         self.bot.inventory_signals.clear_inventory.connect(self.on_clear_inventory)
         self.bot.inventory_signals.inventory_weight.connect(self.on_inventory_weight_updated)
         self.bot.inventory_signals.weight_max.connect(self.on_weight_max_updated)
-        self.bot.game_info_signals.breed_id.connect(self.equipment_panel.set_breed)
+        self.bank_panel.connect_signals()
         self.signals_connected = True
         self._resync_inventory()
 
@@ -159,17 +164,15 @@ class InventoryTab(QWidget):
         self.bot.inventory_signals.clear_inventory.disconnect(self.on_clear_inventory)
         self.bot.inventory_signals.inventory_weight.disconnect(self.on_inventory_weight_updated)
         self.bot.inventory_signals.weight_max.disconnect(self.on_weight_max_updated)
-        self.bot.game_info_signals.breed_id.disconnect(self.equipment_panel.set_breed)
+        self.bank_panel.disconnect_signals()
         self.signals_connected = False
         self.items_by_uid.clear()
         self._rebuild_timer.stop()
         self.list_widget.clear()
         self.equipment_panel.set_items({})
-        self.equipment_panel.set_breed(0)
         self.loading_label.hide()
 
     def _resync_inventory(self) -> None:
-        self.equipment_panel.set_breed(self.bot.game_state.fight.breed_id)
         self.items_by_uid.clear()
         self.list_widget.clear()
         inventory_items = list(self.bot.game_state.inventory.objects_by_uid.values())

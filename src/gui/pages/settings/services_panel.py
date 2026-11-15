@@ -20,7 +20,7 @@ class ServicesSettingsPanel(SettingsPanel):
         def render(settings: GlobalSettings) -> None:
             self.summary.setText(
                 "Sonji: " + ("Configured" if SettingsService().sonji_api_key() else "Not configured")
-                + (" (variable d’environnement)" if settings.sonji_api_key is None else "")
+                + (" (environment variable)" if settings.sonji_api_key is None else "")
             )
             self.key.setText(settings.sonji_api_key or "")
             self.key.setEnabled(settings.sonji_api_key is not None)

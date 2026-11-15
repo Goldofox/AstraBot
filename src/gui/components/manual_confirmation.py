@@ -29,7 +29,7 @@ class ManualConfirmationDialogs(QObject):
         layout = QVBoxLayout(dialog)
         layout.addWidget(BodyLabel(f"Code received for {request.email}", dialog))
         code = LineEdit(dialog)
-        code.setPlaceholderText("6 chiffres")
+        code.setPlaceholderText("6 digits")
         code.setMaxLength(6)
         code.setValidator(QRegularExpressionValidator(QRegularExpression("[0-9]{6}"), code))
         layout.addWidget(code)

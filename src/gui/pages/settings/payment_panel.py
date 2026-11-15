@@ -9,9 +9,9 @@ class PaymentSettingsPanel(SettingsPanel):
         super().__init__(
             "Add a 16-digit Paysafecard code. Existing codes are kept and duplicates are ignored."
         )
-        self.selection = self.overview(["Ordre d’utilisation", "Code Paysafecard"])
+        self.selection = self.overview(["Usage order", "Paysafecard code"])
         self.bind_deletion(self.selection, PaysafecardPoolController().remove_pin)
-        self.pin = self.line("Code Paysafecard")
+        self.pin = self.line("Paysafecard code")
         self.count = BodyLabel("", self)
         self.form.addRow(BodyLabel("Saved codes", self), self.count)
         self.save_button.setText("Add code")

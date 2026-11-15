@@ -22,14 +22,14 @@ class MailSettingsPanel(SettingsPanel):
         self.entries: dict[str, MailAccountEntry] = {}
         self.selected_email: str | None = None
         self.selection = self.overview(["Email address", "Provider", "Status"], "New mailbox…")
-        self.email = self.line("Adresse email")
+        self.email = self.line("Email address")
         self.provider = self.combo("Type", ["imap", "manual", "smailpro"])
         self.host = self.line("IMAP server")
-        self.port = self.line("Port IMAP")
+        self.port = self.line("IMAP port")
         self.username = self.line("IMAP username")
         self.password = self.line("IMAP password")
         self.api_key = self.line("SmailPro key")
-        self.kind = self.combo("Type SmailPro", ["gmail", "outlook"])
+        self.kind = self.combo("SmailPro type", ["gmail", "outlook"])
         self.timestamp = self.line("SmailPro creation timestamp")
         self.state = BodyLabel("", self)
         self.form.addRow(BodyLabel("Status", self), self.state)

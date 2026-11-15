@@ -28,8 +28,8 @@ from qfluentwidgets import (
 
 from DBDofusUnity.consts import PINNED_PAIRS_FILE
 from src.core.signals.log_signals import LogSignals
-from src.gui.pages.debugs.logs import LogsWidget
-from src.gui.pages.debugs.message_table import MessageTable
+from src.gui.pages.account.debug.logs_panel import LogsPanel
+from src.gui.pages.account.debug.message_table import MessageTable
 from src.gui.utils.profiling import profiled_slot
 from src.protocol import initialize_protocol
 from src.protocol.message import MessageInfo
@@ -45,8 +45,8 @@ lazy from DBDofusUnity.proto_mapper_assembly.controllers.pinned_pairs import (
     upsert_pinned_pair,
 )
 lazy from src.core.bot.bot import Bot
-lazy from src.gui.pages.debugs.listeners_stats import ListenersStatsWidget
-lazy from src.gui.pages.debugs.message_detail import MessageDetailWidget, SelectedPinnedField
+lazy from src.gui.pages.account.debug.listeners_panel import ListenersPanel
+lazy from src.gui.pages.account.debug.message_detail_panel import MessageDetailPanel, SelectedPinnedField
 
 
 def _require_message_info(value: object) -> MessageInfo:
@@ -169,7 +169,7 @@ class PinnedPairMessageBox(MessageBoxBase):
         completer.setModel(QStringListModel(non_obf_msg_names, completer))
         self.message_name_edit.setCompleter(completer)
 
-        cast(Any, self).yesButton.setText("Sauvegarder")
+        cast(Any, self).yesButton.setText("Save")
         cast(Any, self).cancelButton.setText("Cancel")
 
         self.viewLayout.addWidget(self.title_label)
@@ -187,7 +187,7 @@ class PinnedPairMessageBox(MessageBoxBase):
         return False
 
 
-class SnifferWidget(QWidget):
+class DebugTab(QWidget):
     msg_table: MessageTable
     play_btn: PrimaryPushButton
     stop_btn: PrimaryPushButton
@@ -270,7 +270,7 @@ class SnifferWidget(QWidget):
         wrapper_filter_layout.setContentsMargins(0, 16, 0, 0)
         custom_filter = LineEdit(wrapper_filter)
         wrapper_filter_layout.addWidget(custom_filter)
-        custom_filter.setPlaceholderText("Contenu")
+        custom_filter.setPlaceholderText("Content")
         custom_filter.textChanged.connect(partial(self.msg_table.table.header.on_new_filter_input, 3))
 
         left_widget_layout.addWidget(wrapper_filter)
@@ -281,7 +281,7 @@ class SnifferWidget(QWidget):
         self.detail_stack = QStackedWidget(self)
         self.detail_empty_state = self._create_detail_empty_state(self.detail_stack)
         self.detail_stack.addWidget(self.detail_empty_state)
-        self.listeners_widget: ListenersStatsWidget | None = None
+        self.listeners_widget: ListenersPanel | None = None
 
         self.right_splitter = QSplitter(Qt.Orientation.Vertical, self)
         self.right_splitter.addWidget(self.detail_stack)
@@ -299,7 +299,7 @@ class SnifferWidget(QWidget):
             debug_stacked = QStackedWidget(debug_tabs_widget)
             debug_tabs_widget_layout.addWidget(debug_stacked)
 
-            logs_widget = LogsWidget(
+            logs_widget = LogsPanel(
                 global_signals=self.global_log_signals,
                 log_signals=self.bot.log_signals,
                 parent=debug_stacked,
@@ -308,7 +308,7 @@ class SnifferWidget(QWidget):
 
             debug_pivot.addItem(
                 routeKey="logs",
-                text="Journaux",
+                text="Logs",
                 onClick=lambda: debug_stacked.setCurrentWidget(logs_widget),
             )
             debug_pivot.addItem(
@@ -391,7 +391,7 @@ class SnifferWidget(QWidget):
     def on_reset(self) -> None:
         self.msg_table.clear()
         if self.logs_widget:
-            self.logs_widget.logs_table.clear()
+            self.logs_widget.log_list.clear()
 
     def showEvent(self, a0: QShowEvent | None) -> None:
         self.msg_table.set_updates_active(True)
@@ -418,8 +418,8 @@ class SnifferWidget(QWidget):
         return recorder
 
     @cached_property
-    def msg_detail(self) -> MessageDetailWidget:
-        detail = MessageDetailWidget(parent=self.detail_stack)
+    def msg_detail(self) -> MessageDetailPanel:
+        detail = MessageDetailPanel(parent=self.detail_stack)
         self.detail_stack.addWidget(detail)
         detail.quit_btn.clicked.connect(self.on_close_detail)
         detail.lock_pinned_fields_btn.clicked.connect(self.on_lock_pinned_fields)
@@ -514,7 +514,7 @@ class SnifferWidget(QWidget):
         debug_stacked: QStackedWidget,
     ) -> None:
         if self.listeners_widget is None:
-            self.listeners_widget = ListenersStatsWidget(
+            self.listeners_widget = ListenersPanel(
                 event_manager=self.bot.event_manager, parent=debug_stacked
             )
             debug_stacked.addWidget(self.listeners_widget)

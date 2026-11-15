@@ -34,7 +34,7 @@ class DynamicTreeWidget(TreeWidget):
         if item is None:
             return
         menu = QMenu(self)
-        copy_action = menu.addAction("Copier")
+        copy_action = menu.addAction("Copy")
         viewport = self.viewport()
         assert viewport is not None
         if menu.exec(viewport.mapToGlobal(pos)) == copy_action:

@@ -8,17 +8,17 @@ from qfluentwidgets.components.widgets.model_combo_box import QStandardItem
 
 from src.core.events_manager.event_manager import EventManager
 from src.core.events_manager.listener import Listener
-from src.gui.components.listener_details_box import ListenerDetailsBox
+from src.gui.pages.account.debug.listener_details_dialog import ListenerDetailsDialog
 from src.gui.components.table.column_info import ColumnInfo
 from src.gui.components.table.table import BaseTableWidget
 
 
-class ListenersStatsTable(BaseTableWidget):
+class ListenersTable(BaseTableWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         columns: list[ColumnInfo] = [
-            ColumnInfo(name="Heure d'enregistrement"),
-            ColumnInfo(name="Origine"),
+            ColumnInfo(name="Registration time"),
+            ColumnInfo(name="Source"),
             ColumnInfo(name="Message type"),
         ]
         self.table.set_columns(columns)
@@ -26,7 +26,7 @@ class ListenersStatsTable(BaseTableWidget):
         self.listener_to_row: dict[Listener[Message], int] = {}
 
 
-class ListenersStatsWidget(QWidget):
+class ListenersPanel(QWidget):
     def __init__(self, event_manager: EventManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.event_manager = event_manager
@@ -36,7 +36,7 @@ class ListenersStatsWidget(QWidget):
         layout.setSpacing(8)
         self.setLayout(layout)
 
-        self.stats_table = ListenersStatsTable(self)
+        self.stats_table = ListenersTable(self)
         self.stats_table.table.setSelectionMode(TableWidget.SelectionMode.SingleSelection)
         self.stats_table.table.clicked.connect(self.on_row_double_clicked)
         layout.addWidget(self.stats_table)
@@ -113,6 +113,6 @@ class ListenersStatsWidget(QWidget):
 
         for listener, listener_row in self.stats_table.listener_to_row.items():
             if listener_row == row:
-                dialog = ListenerDetailsBox(listener, self)
+                dialog = ListenerDetailsDialog(listener, self)
                 dialog.exec()
                 break

@@ -5,7 +5,7 @@ from src.core.signals.world_signals import WorldSignals
 from src.gui.components.graphics.map_world_widget import MapWorldView
 
 
-class WorldTab(QWidget):
+class WorldMapPanel(QWidget):
     def __init__(self, world_signals: WorldSignals, parent: QWidget | None = None):
         super().__init__(parent=parent)
         layout = QVBoxLayout()

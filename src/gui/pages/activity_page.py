@@ -186,7 +186,7 @@ class ActivityPage(QWidget):
         logins = sorted({entry.login for entry in self._activity_entries if entry.login is not None})
         self.login_filter.blockSignals(True)
         self.login_filter.clear()
-        self.login_filter.addItem("Tous", userData=None)
+        self.login_filter.addItem("All", userData=None)
         for login in logins:
             self.login_filter.addItem(login, userData=login)
         self.login_filter.setCurrentIndex(max(self.login_filter.findData(current_login), 0))

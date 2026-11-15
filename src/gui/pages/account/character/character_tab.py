@@ -1,57 +1,48 @@
+from __future__ import annotations
+
+lazy from src.core.bot.bot import Bot
+lazy from src.controller.player_info_storage import PlayerInfoSnapshot
+
 from functools import partial
 
 from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import SingleDirectionScrollArea, SmoothMode
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
-from src.core.signals.grid_signals import GridSignals
-from src.core.signals.player_signals import GameInfoSignals
-from src.core.states.game_state import GameState
 from src.gui.components.graphics.grid_widget import GridView
 from src.gui.components.qfluent_widget.scrollable_message_box import (
     ScrollableMessageBox,
 )
-from src.gui.pages.farmer.player_info.property_panel_widget import PropertyPanelWidget
+from src.gui.pages.account.character.player_info_panel import PlayerInfoPanel
 from src.services.display_catalog import load_display_catalog
 
 
-class MapTab(QWidget):
+class CharacterTab(QWidget):
     def __init__(
         self,
-        grid_signals: GridSignals,
-        game_info_signals: GameInfoSignals,
-        game_state: GameState,
+        bot: Bot,
         parent: QWidget | None = None,
+        *,
+        snapshot: PlayerInfoSnapshot | None = None,
     ):
         super().__init__(parent=parent)
-        self.grid_signals = grid_signals
-        self.game_info_signals = game_info_signals
-        self.game_state = game_state
+        self.grid_signals = bot.grid_signals
+        self.game_info_signals = bot.game_info_signals
+        self.game_state = bot.game_state
         self._catalog = load_display_catalog()
 
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        scroll_area_info = SingleDirectionScrollArea(self)
+        layout = QHBoxLayout(self)
+        grid_view = GridView(self.grid_signals)
+        layout.addWidget(grid_view, 1)
 
-        content_widget = QWidget(scroll_area_info)
-        content_widget_layout = QHBoxLayout()
-        content_widget.setLayout(content_widget_layout)
-
-        grid_view = GridView(grid_signals)
-        content_widget_layout.addWidget(grid_view, 1)
-
-        self.info_panel = PropertyPanelWidget(vertical=True, parent=content_widget)
-        self.info_panel.setMinimumWidth(160)
-        self.info_panel.setMaximumWidth(220)
-        content_widget_layout.addWidget(self.info_panel, 0)
+        self.info_panel = PlayerInfoPanel(bot, parent=self, snapshot=snapshot)
+        self.info_panel.setMinimumWidth(300)
+        self.info_panel.setMaximumWidth(360)
+        layout.addWidget(self.info_panel)
+        self.info_panel.pre_create_group("Map")
         self._connect_info_signals()
-
-        scroll_area_info.setSmoothMode(SmoothMode.NO_SMOOTH)
-        scroll_area_info.setWidgetResizable(True)
-        scroll_area_info.setWidget(content_widget)
-        scroll_area_info.enableTransparentBackground()
-
-        layout.addWidget(scroll_area_info)
+        self.on_in_fight_changed(self.game_state.fight.in_fight)
+        self.info_panel.on_received_property("Map", "Transition in progress", bool(self.game_state.map.is_in_map_transition))
+        self.info_panel.on_received_property("Map", "In Haven Bag", self.game_state.map.is_in_haven_bag)
 
         self.grid_signals.cell_id_clicked.connect(self.on_cell_id_clicked)
 
@@ -61,14 +52,14 @@ class MapTab(QWidget):
     def _connect_info_signals(self) -> None:
         self.grid_signals.new_map_id.connect(self.on_map_id_changed)
         self.grid_signals.is_in_map_transition.connect(
-            partial(self.info_panel.on_received_property, "", "Map transition in progress")
+            partial(self.info_panel.on_received_property, "Map", "Transition in progress")
         )
         self.game_info_signals.is_in_haven_bag.connect(
-            partial(self.info_panel.on_received_property, "", "Inside the Haven Bag")
+            partial(self.info_panel.on_received_property, "Map", "In Haven Bag")
         )
 
         self.combat_group = self.info_panel.pre_create_group("Combat")
-        self.combat_group.hide()
+        self.combat_group.set_active(False)
         self.game_info_signals.in_fight.connect(self.on_in_fight_changed)
         self.game_info_signals.is_our_turn.connect(
             partial(self.info_panel.on_received_property, "Combat", "Our turn")
@@ -88,13 +79,13 @@ class MapTab(QWidget):
 
     @pyqtSlot(bool)
     def on_in_fight_changed(self, in_fight: bool) -> None:
-        self.combat_group.setVisible(in_fight)
+        self.combat_group.set_active(in_fight)
 
     @pyqtSlot(int)
     def on_map_id_changed(self, map_id: int) -> None:
-        self.info_panel.on_received_property("", "Map id", map_id)
+        self.info_panel.on_received_property("Map", "ID", map_id)
         position = self._catalog.map_positions[map_id]
-        self.info_panel.on_received_property("", "Coordinates", str(position))
+        self.info_panel.on_received_property("Map", "Coordinates", str(position))
 
     @pyqtSlot(int)
     def on_cell_id_clicked(self, cell_id: int) -> None:

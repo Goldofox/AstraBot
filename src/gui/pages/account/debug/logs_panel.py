@@ -3,10 +3,10 @@ from PyQt6.QtGui import QHideEvent, QShowEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from src.core.signals.log_signals import LogSignals
-from src.gui.pages.debugs.logs_table import LogsTable
+from src.gui.pages.account.debug.log_list import LogList
 
 
-class LogsWidget(QWidget):
+class LogsPanel(QWidget):
     def __init__(
         self,
         global_signals: LogSignals,
@@ -24,8 +24,8 @@ class LogsWidget(QWidget):
         self._log_cursor = 0
         self.setLayout(self.v_layout)
 
-        self.logs_table = LogsTable(parent=self)
-        self.v_layout.addWidget(self.logs_table)
+        self.log_list = LogList(parent=self)
+        self.v_layout.addWidget(self.log_list)
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(100)
@@ -47,10 +47,10 @@ class LogsWidget(QWidget):
         self._global_cursor, global_entries = self._global_signals.recent_after(self._global_cursor)
         self._log_cursor, bot_entries = self._log_signals.recent_after(self._log_cursor)
         for entry in sorted((*global_entries, *bot_entries), key=lambda entry: entry.logged_at):
-            self.logs_table.add_row(entry.level, entry.message, entry.logged_at)
+            self.log_list.add_row(entry.level, entry.message, entry.logged_at)
 
     def showEvent(self, a0: QShowEvent | None) -> None:
-        self.logs_table.set_updates_active(True)
+        self.log_list.set_updates_active(True)
         if self._capture_enabled:
             self._poll_logs()
             self._poll_timer.start()
@@ -58,5 +58,5 @@ class LogsWidget(QWidget):
 
     def hideEvent(self, a0: QHideEvent | None) -> None:
         self._poll_timer.stop()
-        self.logs_table.set_updates_active(False)
+        self.log_list.set_updates_active(False)
         super().hideEvent(a0)

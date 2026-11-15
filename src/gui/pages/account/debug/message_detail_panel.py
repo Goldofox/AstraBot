@@ -128,7 +128,7 @@ def _message_field_descriptor(field_descriptor: FieldDescriptor) -> Descriptor |
     return field_descriptor.message_type
 
 
-class MessageDetailWidget(QWidget):
+class MessageDetailPanel(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self._msg_json: dict[str, Any] | None = None

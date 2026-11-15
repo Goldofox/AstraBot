@@ -3,17 +3,18 @@ from typing import Any
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from qfluentwidgets import SingleDirectionScrollArea
+from qfluentwidgets import SingleDirectionScrollArea, SmoothMode
 
-from src.gui.pages.farmer.player_info.property_group_widget import PropertyGroupWidget
+from src.gui.components.properties.property_group import PropertyGroup
 
 
-class PropertyPanelWidget(QWidget):
+class PropertyPanel(QWidget):
     def __init__(self, vertical: bool = False, parent: QWidget | None = None):
         super().__init__(parent=parent)
         self._vertical = vertical
 
         scroll_area = SingleDirectionScrollArea(self)
+        scroll_area.setSmoothMode(SmoothMode.NO_SMOOTH)
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -21,17 +22,19 @@ class PropertyPanelWidget(QWidget):
         container_widget = QWidget(scroll_area)
         self.container_layout = QVBoxLayout()
         self.container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.container_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout.setContentsMargins(8, 8, 12, 8)
+        self.container_layout.setSpacing(12)
         container_widget.setLayout(self.container_layout)
 
         scroll_area.setWidget(container_widget)
+        scroll_area.enableTransparentBackground()
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(scroll_area)
         self.setLayout(main_layout)
 
-        self.group_by_key: dict[str, PropertyGroupWidget] = {}
+        self.group_by_key: dict[str, PropertyGroup] = {}
         self._pending_updates: dict[tuple[str, str], Any] = {}
         self._update_scheduled = False
 
@@ -57,16 +60,16 @@ class PropertyPanelWidget(QWidget):
             QTimer.singleShot(0, self._flush_updates)
         super().showEvent(a0)
 
-    def get_or_create_group_widget(self, group_key: str) -> PropertyGroupWidget:
+    def get_or_create_group_widget(self, group_key: str) -> PropertyGroup:
         group_widget = self.group_by_key.get(group_key)
         if group_widget is not None:
             return group_widget
 
-        group_widget = PropertyGroupWidget(key=group_key, vertical=self._vertical)
+        group_widget = PropertyGroup(key=group_key, vertical=self._vertical)
         self.group_by_key[group_key] = group_widget
         self.container_layout.addWidget(group_widget)
 
         return group_widget
 
-    def pre_create_group(self, group_key: str) -> PropertyGroupWidget:
+    def pre_create_group(self, group_key: str) -> PropertyGroup:
         return self.get_or_create_group_widget(group_key)

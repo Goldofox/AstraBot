@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-lazy from src.core.bot.bot import Bot
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot
+from PyQt6.QtGui import QShowEvent
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from qfluentwidgets import BodyLabel, CaptionLabel
 
 from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
     ObjectItemInventory,
 )
-from PyQt6.QtCore import QTimer, pyqtSlot
-from PyQt6.QtGui import QShowEvent
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel
-
-from src.gui.components.item_grid import ItemGrid
+from src.gui.components.item_grid import ItemGrid, ItemGridContainer
+lazy from src.core.bot.bot import Bot
 
 
-class BankTab(QWidget):
+class BankPanel(QWidget):
     def __init__(self, bot: Bot, parent: QWidget | None = None):
         super().__init__(parent=parent)
         self.bot = bot
@@ -31,8 +30,12 @@ class BankTab(QWidget):
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        layout.setContentsMargins(0, 0, 0, 0)
+        title = BodyLabel(text="Bank", parent=self)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        layout.addWidget(ItemGridContainer(self.list_widget, self), 1)
         layout.addWidget(self.loading_label)
-        layout.addWidget(self.list_widget)
 
     @pyqtSlot(list)
     def on_bank_refreshed(self, objects: list[ObjectItemInventory]):

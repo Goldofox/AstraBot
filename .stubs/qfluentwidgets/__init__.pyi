@@ -7,6 +7,7 @@ from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListView,
@@ -24,6 +25,13 @@ from qfluentwidgets.components.widgets.scroll_bar import (
     SmoothScrollBar as SmoothScrollBar,
     SmoothScrollDelegate as SmoothScrollDelegate,
 )
+
+class HeaderCardWidget(QWidget):
+    headerLabel: QLabel
+    headerLayout: QHBoxLayout
+    viewLayout: QHBoxLayout
+    def __init__(self, parent: QWidget | None = None) -> None: ...
+    def setTitle(self, title: str) -> None: ...
 
 class ListItemDelegate(QStyledItemDelegate):
     hoverRow: int
@@ -83,6 +91,7 @@ class FluentIcon(FluentIconBase, Enum):
     PAUSE: FluentIcon
     PEOPLE: FluentIcon
     PIN: FluentIcon
+    POWER_BUTTON: FluentIcon
     PLAY: FluentIcon
     PRINT: FluentIcon
     RETURN: FluentIcon

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import ObjectItemInventory
 from PyQt6.QtCore import QPoint, QSize, QTimer, Qt, pyqtSlot
 from PyQt6.QtGui import QIcon, QImage, QPixmap, QResizeEvent, QShowEvent
-from PyQt6.QtWidgets import QListView, QListWidgetItem, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QListView, QListWidgetItem, QWidget
 from qfluentwidgets import ListWidget, SmoothMode
 
 from src.gui.components.inventory_item_delegate import InventoryItemDelegate
@@ -10,7 +12,21 @@ from src.gui.utils.item_display import get_item_display
 
 CELL_SIZE = 80
 CELL_SPACING = 6
-FIVE_COLUMN_WIDTH = 5 * (CELL_SIZE + CELL_SPACING) + CELL_SPACING + 20
+
+
+class ItemGridContainer(QWidget):
+    def __init__(self, grid: ItemGrid, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.grid = grid
+        self.setMinimumWidth(CELL_SIZE + 20)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(grid, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        super().resizeEvent(a0)
+        columns = max(1, (self.width() - 20) // CELL_SIZE)
+        self.grid.setFixedWidth(columns * CELL_SIZE + 20)
 
 
 class ItemGrid(ListWidget):

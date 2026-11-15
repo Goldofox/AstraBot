@@ -18,17 +18,17 @@ def _require_recipe_item(value: object) -> RecipeItem:
     return value
 
 
-class RecipeTableSignals(QObject):
+class CraftQueueSignals(QObject):
     removed_recipe = pyqtSignal(RecipeItem)
 
 
-class RecipeTable(BaseTableWidget):
+class CraftQueueTable(BaseTableWidget):
     def __init__(self, recipes: list[RecipeItem], parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         columns: list[ColumnInfo] = [
             ColumnInfo(name="Name"),
             ColumnInfo(name="Profession"),
-            ColumnInfo(name="Niv."),
+            ColumnInfo(name="Level"),
             ColumnInfo(name="Profit"),
             ColumnInfo(name="", filter_info=None),
         ]
@@ -39,7 +39,7 @@ class RecipeTable(BaseTableWidget):
         self.table.setColumnWidth(4, 36)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        self.signals = RecipeTableSignals(parent=self)
+        self.signals = CraftQueueSignals(parent=self)
         self.widget_item_by_recipe: dict[RecipeItem, QStandardItem] = {}
         for recipe in recipes:
             self.add_recipe(recipe)
@@ -82,5 +82,5 @@ class RecipeTable(BaseTableWidget):
         self.on_remove_recipe(recipe)
 
     def on_remove_recipe(self, recipe: RecipeItem) -> None:
-        self.signals.removed_recipe.emit(recipe)
         self.widget_item_by_recipe.pop(recipe)
+        self.signals.removed_recipe.emit(recipe)

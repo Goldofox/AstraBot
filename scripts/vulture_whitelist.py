@@ -4,9 +4,8 @@ from src.gui.components.qfluent_widget.scrollable_message_box import (
 )
 from src.gui.components.table.multi_filter_proxy import MultiColumnFilterProxyModel
 from src.gui.components.table.table_view import CustomTableModel
-from src.gui.fragments.sidebar_item import SidebarItem
 from src.gui.fragments.sidebar_panel import SidebarPanel
-from src.gui.pages.debugs.message_filter_proxy import MessageFilterProxyModel
+from src.gui.pages.account.debug.message_filter_proxy import MessageFilterProxyModel
 
 _ = (
     LogSyntaxHighlighter.highlightBlock,
@@ -14,8 +13,6 @@ _ = (
     MessageFilterProxyModel.filterAcceptsRow,
     CustomTableModel.columnCount,
     CustomTableModel.flags,
-    SidebarItem.play_clicked,
-    SidebarItem.stop_clicked,
     SidebarPanel.setExpandWidth,
     SidebarPanel.setAcrylicEnabled,
     ScrollableMessageBox,

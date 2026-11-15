@@ -27,18 +27,18 @@ from src.gui.consts import BASE_HEIGHT, BASE_WIDTH
 from src.gui.fragments.app_fluent_window import AppFluentWindow
 from src.gui.fragments.sidebar_item import SidebarItem
 from src.gui.services.item_icons import class_icon_cache
-from src.gui.pages.activity import ActivityPage
+from src.gui.pages.activity_page import ActivityPage
 from src.gui.pages.settings.settings_page import SettingsPage
 from src.services.background import run_in_background
 from src.services.logging_utils.loggers import init_root_gui_logging
 lazy from src.core.bot.bot import Bot
 lazy from src.core.bot.bot_manager import BotManager
-lazy from src.gui.fragments.account_stacked_widget import AccountStackedWidget
+lazy from src.gui.pages.account.account_page import AccountPage
 lazy from src.services.startup import subscription_end_dates
 
 class MainWindow(AppFluentWindow):
     retry_requested = pyqtSignal()
-    account_widgets: list[AccountStackedWidget]
+    account_widgets: list[AccountPage]
     bots_by_login: dict[str, Bot]
     sidebar_items_by_login: dict[str, SidebarItem]
 
@@ -69,7 +69,7 @@ class MainWindow(AppFluentWindow):
         self._class_icons = class_icon_cache()
         self._class_icons.ready.connect(self._on_breed_icon_ready)
 
-        self.account_widgets: list[AccountStackedWidget] = []
+        self.account_widgets: list[AccountPage] = []
         self._account_pages: dict[str, QWidget] = {}
         self._account_details: dict[str, tuple[PlayerInfoSnapshot | None, str | None, datetime]] = {}
         self._runtime_ready = False
@@ -169,7 +169,7 @@ class MainWindow(AppFluentWindow):
         login = widget.objectName()
         if login in self.bots_by_login and widget.layout() is None:
             snapshot, reason, subscription_end = self._account_details[login]
-            view = AccountStackedWidget(
+            view = AccountPage(
                 self.global_log_signals,
                 login,
                 self.bots_by_login[login],
@@ -203,8 +203,8 @@ class MainWindow(AppFluentWindow):
         self._set_sidebar_title(navigation_widget, login, snapshot)
         self.sidebar_items_by_login[login] = navigation_widget
         navigation_widget.set_controls_enabled(self._runtime_ready)
-        navigation_widget.set_subscribed(subscription_end > datetime.now(tz=subscription_end.tzinfo))
         navigation_widget.set_playing(account.is_playing_event.is_set())
+        navigation_widget.set_subscribed(subscription_end > datetime.now(tz=subscription_end.tzinfo))
         is_connected = account.is_connected_event.is_set()
         navigation_widget.set_connected(is_connected)
         if is_connected:

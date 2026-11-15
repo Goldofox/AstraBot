@@ -15,7 +15,7 @@ from qfluentwidgets import BodyLabel, CaptionLabel, LineEdit
 from src.services.display_catalog import load_display_catalog
 
 
-class RecipeGroupSignals(QObject):
+class RecipeSearchSignals(QObject):
     clicked_elem_queue = pyqtSignal(object)
 
 
@@ -71,10 +71,10 @@ class RecipeFilterProxyModel(QSortFilterProxyModel):
         )
 
 
-class RecipeGroup(QWidget):
+class RecipeSearchPanel(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.signals = RecipeGroupSignals(parent=self)
+        self.signals = RecipeSearchSignals(parent=self)
         self.proxy_model = RecipeFilterProxyModel(self)
 
         layout = QVBoxLayout(self)

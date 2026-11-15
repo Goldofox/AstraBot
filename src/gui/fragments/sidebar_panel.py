@@ -122,7 +122,7 @@ class SidebarPanel(QFrame):
         self.returnButton.clicked.connect(self.history.pop)
 
         self.returnButton.installEventFilter(ToolTipFilter(self.returnButton, 0))
-        self.returnButton.setToolTip(self.tr("Retour"))
+        self.returnButton.setToolTip(self.tr("Back"))
 
         self.menuButton.installEventFilter(ToolTipFilter(self.menuButton, 0))
         self.menuButton.setToolTip(self.tr("Open navigation"))

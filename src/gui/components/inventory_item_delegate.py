@@ -10,7 +10,7 @@ class InventoryItemDelegate(ListItemDelegate):
         self._icons = icons
 
     def paint(self, painter: QPainter | None, option: QStyleOptionViewItem, index: QModelIndex) -> None:
-        if painter is None:
+        if painter is None or index.data(Qt.ItemDataRole.UserRole + 2):
             return
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

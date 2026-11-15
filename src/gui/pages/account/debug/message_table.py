@@ -13,7 +13,7 @@ from src.gui.components.table.column_info import ColumnInfo
 from src.gui.components.table.table import BaseTableWidget
 from src.gui.components.table.table_view import CustomTableModel
 from src.gui.consts import GREEN_COLOR
-from src.gui.pages.debugs.message_filter_proxy import MESSAGE_SEARCH_ROLE, MessageFilterProxyModel
+from src.gui.pages.account.debug.message_filter_proxy import MESSAGE_SEARCH_ROLE, MessageFilterProxyModel
 from src.protocol.message import MessageInfo
 from src.services.debug_recorder.recorder import RecentMessageEntry
 
@@ -112,10 +112,10 @@ class MessageTable(BaseTableWidget):
         self._batch_timer.timeout.connect(self._flush_pending_messages)
         self._unmapped_candidates_by_obf: dict[str, list[tuple[str, float]]] = {}
         columns: list[ColumnInfo] = [
-            ColumnInfo(name="Heure"),
-            ColumnInfo(name="Origine"),
+            ColumnInfo(name="Time"),
+            ColumnInfo(name="Source"),
             ColumnInfo(name="Type"),
-            ColumnInfo(name="Contenu", is_hidden=True),
+            ColumnInfo(name="Content", is_hidden=True),
         ]
         self.table.set_columns(columns)
 

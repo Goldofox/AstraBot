@@ -150,7 +150,7 @@ class LogEntryDelegate(QStyledItemDelegate):
         painter.restore()
 
 
-class LogsTable(QWidget):
+class LogList(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         layout = QVBoxLayout(self)

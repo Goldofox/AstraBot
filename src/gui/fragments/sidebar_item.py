@@ -29,8 +29,6 @@ from src.core.signals.bot_signals import BotSignals
 class SidebarItem(NavigationWidget):
     connection_mode_changed = pyqtSignal(str)
     disconnect_clicked = pyqtSignal()
-    play_clicked = pyqtSignal()
-    stop_clicked = pyqtSignal()
 
     def __init__(
         self,
@@ -46,7 +44,7 @@ class SidebarItem(NavigationWidget):
         )
         self.bot_signals = bot_signals
         self.in_fight: bool = False
-        self._is_playing: bool = False
+        self._is_playing = False
         self._is_connected: bool = False
         self._left_icon_source = toQIcon(left_icon)
         self.main_layout = QVBoxLayout()
@@ -111,12 +109,12 @@ class SidebarItem(NavigationWidget):
 
         self._stop_btn = TransparentToolButton(FluentIcon.PAUSE, self)
         self._stop_btn.setFixedSize(24, 24)
-        self._stop_btn.clicked.connect(self.on_click_stop)
+        self._stop_btn.clicked.connect(self.bot_signals.stop.emit)
         self.bot_signals.stop.connect(self.on_stop)
         self._stop_btn.hide()
         self.controls_layout.addWidget(self._stop_btn)
 
-        self._disconnect_btn = TransparentToolButton(FluentIcon.CLOSE, self)
+        self._disconnect_btn = TransparentToolButton(FluentIcon.POWER_BUTTON, self)
         self._disconnect_btn.setFixedSize(24, 24)
         self._disconnect_btn.setToolTip("Disconnect")
         self._disconnect_btn.installEventFilter(ToolTipFilter(self._disconnect_btn, 0))
@@ -156,8 +154,6 @@ class SidebarItem(NavigationWidget):
             self._status_label.hide()
             self._right_icon.hide()
             self._subscription_icon.hide()
-            self._play_btn.hide()
-            self._stop_btn.hide()
             self._disconnect_btn.hide()
             self._mode_combo.hide()
         else:
@@ -168,27 +164,29 @@ class SidebarItem(NavigationWidget):
             if self.in_fight:
                 self._right_icon.show()
             self._subscription_icon.show()
-            self._sync_play_buttons()
             self._disconnect_btn.show()
             self._mode_combo.show()
 
         self.update()
+        self._sync_play_buttons()
 
     def _sync_play_buttons(self) -> None:
-        if self.isCompacted:
-            self._play_btn.hide()
-            self._stop_btn.hide()
-            return
-        if self._is_playing:
-            self._play_btn.hide()
-            self._stop_btn.show()
-        else:
-            self._stop_btn.hide()
-            self._play_btn.show()
+        self._play_btn.setVisible(not self.isCompacted and not self._is_playing)
+        self._stop_btn.setVisible(not self.isCompacted and self._is_playing)
 
     def set_playing(self, is_playing: bool) -> None:
         self._is_playing = is_playing
         self._sync_play_buttons()
+
+    def on_click_play(self) -> None:
+        self.bot_signals.play.emit(True)
+        self.bot_signals.play_auto_bot.emit()
+
+    def on_play(self, _: bool) -> None:
+        self.set_playing(True)
+
+    def on_stop(self) -> None:
+        self.set_playing(False)
 
     def set_connected(self, is_connected: bool) -> None:
         self._is_connected = is_connected
@@ -233,19 +231,6 @@ class SidebarItem(NavigationWidget):
     def _on_mode_changed(self) -> None:
         mode = self._mode_combo.currentData()
         self.connection_mode_changed.emit(mode if mode else "mitm")
-
-    def on_click_play(self) -> None:
-        self.bot_signals.play.emit(True)
-        self.bot_signals.play_auto_bot.emit()
-
-    def on_click_stop(self) -> None:
-        self.bot_signals.stop.emit()
-
-    def on_play(self, _: bool) -> None:
-        self.set_playing(True)
-
-    def on_stop(self) -> None:
-        self.set_playing(False)
 
     def _on_automation_status_changed(self, status: str) -> None:
         self._status_label.setText(status)

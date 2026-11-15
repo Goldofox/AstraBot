@@ -14,7 +14,7 @@ lazy from src.core.bot.bot import Bot
 _UNKNOWN_VALUE = "—"
 
 
-class AccountQuickInfoWidget(QWidget):
+class AccountSummary(QWidget):
     def __init__(
         self,
         bot: Bot,
@@ -36,8 +36,8 @@ class AccountQuickInfoWidget(QWidget):
             layout, "Subscription end"
         )
         _, self.kamas_label = self._add_info_column(layout, "Kamas")
-        _, self.level_label = self._add_info_column(layout, "Niveau")
-        _, self.sub_area_label = self._add_info_column(layout, "Sous-zone actuelle")
+        _, self.level_label = self._add_info_column(layout, "Level")
+        _, self.sub_area_label = self._add_info_column(layout, "Current subarea")
 
         self.bot.game_info_signals.subscription_end_date.connect(self._set_subscription_end_date)
         self.bot.inventory_signals.kamas.connect(self._set_kamas)
