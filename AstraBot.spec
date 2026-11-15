@@ -3,13 +3,13 @@
 from pathlib import Path
 
 import msgspec
-from PyInstaller.utils.hooks import copy_metadata
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, copy_metadata
 
 a = Analysis(
     ['__main__.py'],
     pathex=['DBDofusUnity', 'AnkamaLauncherEmulator'],
-    binaries=[],
-    datas=copy_metadata('playwright') + [
+    binaries=collect_dynamic_libs('fmod_toolkit'),
+    datas=copy_metadata('playwright') + collect_data_files('UnityPy', subdir='resources') + collect_data_files('archspec') + [
         ('resources/icons', 'resources/icons'),
         ('VERSION', '.'),
         ('DBDofusUnity/datas/bundles/data', 'DBDofusUnity/datas/bundles/data'),
@@ -21,7 +21,7 @@ a = Analysis(
         ('DBDofusUnity/datas/protos', 'DBDofusUnity/datas/protos'),
         ('AnkamaLauncherEmulator/ankama_launcher_emulator/server/dofus3/script.js', 'AnkamaLauncherEmulator/ankama_launcher_emulator/server/dofus3'),
     ],
-    hiddenimports=[],
+    hiddenimports=['UnityPy.resources'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

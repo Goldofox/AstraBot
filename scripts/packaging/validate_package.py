@@ -37,6 +37,12 @@ def validate_package(folder: Path) -> None:
     version = folder / "_internal/VERSION"
     if not version.is_file():
         raise RuntimeError("Packaged VERSION file is missing")
+    if not (folder / "_internal/UnityPy/resources/lzma.tpk").is_file():
+        raise RuntimeError("Packaged UnityPy image decoder resources are missing")
+    if not (folder / "_internal/fmod_toolkit/libfmod/Windows/x64/fmod.dll").is_file():
+        raise RuntimeError("Packaged UnityPy FMOD dependency is missing")
+    if not (folder / "_internal/archspec/json/cpu/microarchitectures.json").is_file():
+        raise RuntimeError("Packaged UnityPy CPU detection data is missing")
     with ZipFile(folder / "_internal/DBDofusUnity/datas/bundles/maps.zip") as archive:
         if archive.testzip() is not None:
             raise RuntimeError("Packaged maps.zip is corrupted")
