@@ -46,6 +46,7 @@ class SidebarItem(NavigationWidget):
         self.in_fight: bool = False
         self._is_playing = False
         self._is_connected: bool = False
+        self._controls_enabled = True
         self._left_icon_source = toQIcon(left_icon)
         self.main_layout = QVBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -131,8 +132,10 @@ class SidebarItem(NavigationWidget):
             self._right_icon.hide()
 
     def set_controls_enabled(self, enabled: bool) -> None:
-        for widget in (self._mode_combo, self._play_btn, self._stop_btn, self._disconnect_btn):
+        self._controls_enabled = enabled
+        for widget in (self._mode_combo, self._play_btn, self._stop_btn):
             widget.setEnabled(enabled)
+        self._disconnect_btn.setEnabled(enabled and self._is_connected)
 
     def set_subscribed(self, is_subscribed: bool) -> None:
         color = QColor(0, 230, 118) if is_subscribed else QColor(244, 67, 54)
@@ -190,7 +193,7 @@ class SidebarItem(NavigationWidget):
 
     def set_connected(self, is_connected: bool) -> None:
         self._is_connected = is_connected
-        self._disconnect_btn.setEnabled(is_connected)
+        self._disconnect_btn.setEnabled(self._controls_enabled and is_connected)
         self._sync_left_icon()
 
     def _sync_left_icon(self) -> None:

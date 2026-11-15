@@ -8,9 +8,9 @@ from urllib.parse import unquote, urlparse
 from playwright.async_api import BrowserContext, Error, ProxySettings, async_playwright
 
 from ankama_launcher_emulator.consts import DEBUG_TRACES_DIR
-from src.core.config import DEBUG
 from src.utils.runtime_support import RuntimeSetupError, configure_browser_path
 from src.services.install_validation import browser_repair_message
+from src.utils.project_paths import IS_PACKAGED
 
 BROWSER_ARGS = ["--no-sandbox", "--disable-blink-features=AutomationControlled", "--window-position=0,0"]
 _TRACE_RETENTION_DAYS = 7
@@ -64,7 +64,7 @@ async def launch_browser_context(
     proxy_url: str | None,
 ) -> AsyncGenerator[BrowserContext, None]:
     configure_browser_path()
-    trace_directory = _trace_directory() if DEBUG else None
+    trace_directory = None if IS_PACKAGED else _trace_directory()
     proxy_settings = _playwright_proxy_settings(proxy_url)
     async with async_playwright() as playwright:
         try:

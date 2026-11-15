@@ -12,8 +12,9 @@ from qfluentwidgets import (
     TransparentToolButton,
 )
 
-from src.core import config
+from src.controller.settings import SettingsService
 from src.core.behaviors.behavior_factory import USABLE_BEHAVIORS
+from src.gui.pages.account.actions.launch_summary_panel import LaunchSummaryPanel
 from src.gui.pages.account.actions.world_map_panel import WorldMapPanel
 from src.services.display_catalog import load_display_catalog
 lazy from src.core.bot.bot import Bot
@@ -53,8 +54,10 @@ class ActionsTab(QWidget):
 
         self._catalog = load_display_catalog()
         self.world_map_panel = WorldMapPanel(bot.world_signals, self)
+        self.launch_summary = LaunchSummaryPanel(self)
         self.init_top_content()
 
+        self._v_layout.addWidget(self.launch_summary)
         self._v_layout.addWidget(self.world_map_panel, 1)
 
         self.bot.bot_signals.play_harvester.connect(self.on_play_harvester)
@@ -85,15 +88,15 @@ class ActionsTab(QWidget):
             self.type_action_combo.addItem(farm_action)
 
         self.type_action_combo.addItem(CraftActionEnum.CRAFTER)
-        if config.DEBUG:
-            for usable_behavior in USABLE_BEHAVIORS:
-                self.type_action_combo.addItem(usable_behavior.__name__)
+        for usable_behavior in USABLE_BEHAVIORS:
+            self.type_action_combo.addItem(usable_behavior.__name__)
 
         self.type_action_combo.setCurrentText(FarmActionEnum.AUTO)
         self.type_action_combo.currentIndexChanged.connect(self.on_type_action_changed)
         top_widget_layout.addWidget(self.type_action_combo)
 
         self.sub_area_farm_combo = ComboBox(top_widget)
+        self.sub_area_farm_combo.currentIndexChanged.connect(self.refresh_launch_summary)
 
         self.area_farm_combo = ComboBox(top_widget)
         self.area_farm_combo.addItem("")
@@ -122,12 +125,32 @@ class ActionsTab(QWidget):
             self.craft_panel.setVisible(is_craft)
             self.craft_panel.setEnabled(not self._running)
         self._refresh_play_button()
+        self.refresh_launch_summary()
+
+    def refresh_launch_summary(self) -> None:
+        mode = self.type_action_combo.currentText()
+        whole_area = False
+        if mode == FarmActionEnum.AUTO:
+            target = "Selected automatically at runtime"
+        elif self.sub_area_farm_combo.currentData() is not None:
+            target = self.sub_area_farm_combo.currentText()
+        elif self.area_farm_combo.currentData() is not None:
+            target = self.area_farm_combo.currentText()
+            whole_area = True
+        else:
+            target = "Current subarea at startup"
+        saved_settings = SettingsService().get().behaviors
+        settings = self.bot.game_state.settings if self._running else saved_settings
+        self.launch_summary.update_summary(
+            mode, target, settings, running=self._running, whole_area=whole_area,
+            pending_changes=self._running and settings != saved_settings,
+        )
 
     def _ensure_craft_panel(self) -> CraftPanel:
         if self.craft_panel is None:
             self.craft_panel = CraftPanel(self.bot, self)
             self.craft_panel.queue_changed.connect(self._refresh_play_button)
-            self._v_layout.insertWidget(1, self.craft_panel, 1)
+            self._v_layout.insertWidget(2, self.craft_panel, 1)
         return self.craft_panel
 
     def _refresh_play_button(self) -> None:
@@ -140,10 +163,12 @@ class ActionsTab(QWidget):
         current_area_id = self.area_farm_combo.currentData()
         self.sub_area_farm_combo.clear()
         if current_area_id is None:
+            self.refresh_launch_summary()
             return
         self.sub_area_farm_combo.addItem("")
         for sub_area in self._catalog.sub_areas.get(current_area_id, []):
             self.sub_area_farm_combo.addItem(sub_area.name, userData=sub_area.id)
+        self.refresh_launch_summary()
 
     @pyqtSlot()
     def on_click_play(self) -> None:
@@ -160,7 +185,7 @@ class ActionsTab(QWidget):
             self.bot.bot_signals.play_auto_bot.emit()
         elif self.type_action_combo.currentText() == CraftActionEnum.CRAFTER:
             self.bot.bot_signals.play_crafter.emit(self._ensure_craft_panel().recipes)
-        elif config.DEBUG and self.type_action_combo.currentText() not in FarmActionEnum:
+        elif self.type_action_combo.currentText() not in FarmActionEnum:
             self.bot.bot_signals.play_usable_behavior.emit(self.type_action_combo.currentText())
 
     @pyqtSlot(bool)
@@ -173,6 +198,7 @@ class ActionsTab(QWidget):
         self.sub_area_farm_combo.setDisabled(True)
         if self.craft_panel is not None:
             self.craft_panel.setEnabled(False)
+        self.refresh_launch_summary()
 
     @pyqtSlot(object, object)
     def on_play_harvester(self, area_id: int | None, sub_area_id: int | None) -> None:
@@ -187,6 +213,7 @@ class ActionsTab(QWidget):
     @pyqtSlot()
     def on_play_auto(self) -> None:
         self.type_action_combo.setCurrentText(FarmActionEnum.AUTO)
+        self.refresh_launch_summary()
 
     @pyqtSlot(object)
     def on_play_craft(self, recipes: list[RecipeItem]) -> None:
@@ -197,8 +224,7 @@ class ActionsTab(QWidget):
 
     @pyqtSlot(str)
     def on_play_usable_behavior(self, name: str) -> None:
-        if config.DEBUG:
-            self.type_action_combo.setCurrentText(name)
+        self.type_action_combo.setCurrentText(name)
 
     def on_played_zone(self, area_id: int | None, sub_area_id: int | None) -> None:
         if area_id is not None:
@@ -210,6 +236,7 @@ class ActionsTab(QWidget):
             self.sub_area_farm_combo.setCurrentIndex(self.sub_area_farm_combo.findData(sub_area_id))
         else:
             self.sub_area_farm_combo.setCurrentText("")
+        self.refresh_launch_summary()
 
     @pyqtSlot()
     def on_stop(self) -> None:
@@ -239,3 +266,4 @@ class ActionsTab(QWidget):
     def showEvent(self, a0: QShowEvent | None) -> None:
         super().showEvent(a0)
         self._sync_running_action()
+        self.refresh_launch_summary()

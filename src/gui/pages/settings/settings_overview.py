@@ -13,6 +13,7 @@ class SettingsOverview(QWidget):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.keys: list[str] = []
+        self._pending_key: str | None = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 16)
         self.count = BodyLabel("", self)
@@ -47,12 +48,17 @@ class SettingsOverview(QWidget):
 
     @property
     def selected_key(self) -> str | None:
+        if self._pending_key is not None:
+            return self._pending_key
         selection = self.table.selectionModel()
         assert selection is not None
         rows = selection.selectedRows()
         return self.keys[rows[0].row()] if rows else None
 
     def select_key(self, key: str | None) -> None:
+        self._pending_key = key if key is not None and key not in self.keys else None
+        if self._pending_key is not None:
+            return
         with QSignalBlocker(self.table):
             self.table.clearSelection()
             if key in self.keys:
@@ -64,6 +70,7 @@ class SettingsOverview(QWidget):
 
     def set_rows(self, rows: list[tuple[str, tuple[str, ...]]]) -> None:
         selected = self.selected_key
+        self._pending_key = None
         with QSignalBlocker(self.table):
             self.table.clearSelection()
             self.keys = [key for key, _ in rows]

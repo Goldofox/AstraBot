@@ -55,6 +55,7 @@ class MailSettingsPanel(SettingsPanel):
         self.perform(MailAccountController().get_all_entries, render)
 
     def select(self) -> None:
+        self.finish_edit()
         email = self.selection.selected_key
         self.selected_email = email
         entry = (
@@ -103,6 +104,12 @@ class MailSettingsPanel(SettingsPanel):
             self.invalid()
             return
         create = self.selected_email is None
+
+        def done(_: None) -> None:
+            if self.selection.selected_key in (None, email):
+                self.selection.select_key(email)
+            self.reload()
+
         self.perform(
-            lambda: MailAccountController().save_config(email, config, create=create), lambda _: self.reload()
+            lambda: MailAccountController().save_config(email, config, create=create), done
         )

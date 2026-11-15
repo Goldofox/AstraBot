@@ -18,6 +18,7 @@ lazy from src.gui.pages.settings.services_panel import ServicesSettingsPanel
 
 class SettingsPage(QWidget):
     schedules_changed = pyqtSignal()
+    behaviors_changed = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -81,7 +82,9 @@ class SettingsPage(QWidget):
             panel = self._factories[index]()
             self._panels[index] = panel
             panel.setAutoFillBackground(False)
-            if index == 3:
+            if index == 0:
+                panel.saved.connect(self.behaviors_changed.emit)
+            elif index == 3:
                 cast(ScheduleSettingsPanel, panel).changed.connect(self.schedules_changed.emit)
             elif index == 4:
                 cast(AssignmentSettingsPanel, panel).changed.connect(self.schedules_changed.emit)

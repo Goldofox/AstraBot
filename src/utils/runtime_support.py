@@ -20,7 +20,7 @@ def error_message(error: object) -> str:
     if isinstance(error, ImportError):
         return "A Python dependency is missing or cannot be loaded. Reinstall the release or run uv sync."
     if isinstance(error, OSError):
-        filename = Path(error.filename).name if error.filename else "ressource locale"
+        filename = Path(error.filename).name if error.filename else "local resource"
         return f"Unable to access {filename}. Check that it exists and that you have access rights."
     return f"The operation failed ({type(error).__name__}). Check the diagnostic log."
 

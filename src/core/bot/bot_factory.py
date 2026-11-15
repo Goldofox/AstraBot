@@ -1,7 +1,6 @@
 import random
 import threading
 
-import src.core.config
 from AnkamaLauncherEmulator.ankama_launcher_emulator.interfaces.credentials import (
     DecipheredApiKey,
     DecipheredCertif,
@@ -9,6 +8,7 @@ from AnkamaLauncherEmulator.ankama_launcher_emulator.interfaces.credentials impo
 )
 from src import consts
 from src.controller.settings import SettingsService
+from src.core.behaviors.behavior import Behavior
 from src.core.behaviors.account.character_creation_behavior import (
     CharacterCreationBehavior,
 )
@@ -34,9 +34,6 @@ from src.core.behaviors.farms.harvest.multi_farming_behavior import MultiFarming
 from src.core.behaviors.farms.random_farm_behavior import RandomFarmBehavior
 from src.core.behaviors.idle_behavior import IdleBehavior
 from src.core.behaviors.interactives.collect_behavior import CollectBehavior
-from src.core.behaviors.interactives.fake_bad_interactive_behavior import (
-    FakeBadInteractiveBehavior,
-)
 from src.core.behaviors.interactives.interactive_behavior import InteractiveBehavior
 from src.core.behaviors.items.acquire_items_behavior import AcquireItemsBehavior
 from src.core.behaviors.items.auto_equipment_behavior import AutoEquipmentBehavior
@@ -54,9 +51,6 @@ from src.core.behaviors.movements.auto_trip.auto_trip_zaap_behavior import (
     AutoTripZaapBehavior,
 )
 from src.core.behaviors.movements.edge_behavior import EdgeBehavior
-from src.core.behaviors.movements.fake_bad_movement_behavior import (
-    FakeBadMovementBehavior,
-)
 from src.core.behaviors.movements.map_change_behavior import MapChangeBehavior
 from src.core.behaviors.movements.map_move_behavior import MapMoveBehavior
 from src.core.behaviors.movements.map_movement_cancel_behavior import MapMovementCancelBehavior
@@ -144,6 +138,7 @@ from src.core.signals.world_signals import WorldSignals
 from src.core.states.state_factory import StateFactory
 from src.services.debug_recorder import create_bot_session_debug_recorder
 from src.services.logging_utils.loggers import BotLogger
+from src.utils.project_paths import IS_PACKAGED
 
 
 class BotFactory:
@@ -163,9 +158,7 @@ class BotFactory:
 
         title = account.apikey.login
         debug_recorder = (
-            create_bot_session_debug_recorder(consts.BOT_DEBUG_LOGS_DIR, title)
-            if src.core.config.DEBUG
-            else None
+            None if IS_PACKAGED else create_bot_session_debug_recorder(consts.BOT_DEBUG_LOGS_DIR, title)
         )
         logger = BotLogger(title=title, log_signals=log_signals, debug_recorder=debug_recorder)
 
@@ -651,9 +644,6 @@ class BotFactory:
             auto_equipment_behavior=auto_equipment_behavior,
         )
 
-        fake_bad_movement_behavior = FakeBadMovementBehavior(
-            event_manager=event_manager, game_state=game_state, _logger=logger
-        )
         mule_accept_kamas_behavior = MuleAcceptBehavior(
             recovery=blocking_state_recovery,
             event_manager=event_manager,
@@ -709,9 +699,6 @@ class BotFactory:
             report_status=harvester_signals.automation_status_changed.emit,
         )
 
-        fake_bad_interactive_behavior = FakeBadInteractiveBehavior(
-            _logger=logger, event_manager=event_manager, game_state=game_state
-        )
         hearthbeat_behavior = HearthBeatBehavior(
             _logger=logger, event_manager=event_manager, game_state=game_state
         )
@@ -732,18 +719,26 @@ class BotFactory:
             account_id=account.apikey.accountId,
         )
 
+        usable_behaviors: list[Behavior] = [
+            mule_accept_kamas_behavior,
+            mule_give_behavior,
+            dungeon_behavior,
+            sale_hotel_prices_behavior,
+            auto_equipment_behavior,
+            ogrine_subscription_behavior,
+            paysafecard_subscription_behavior,
+        ]
+        if not IS_PACKAGED:
+            from src.core.behaviors.interactives.fake_bad_interactive_behavior import FakeBadInteractiveBehavior
+            from src.core.behaviors.movements.fake_bad_movement_behavior import FakeBadMovementBehavior
+
+            usable_behaviors.extend([
+                FakeBadMovementBehavior(event_manager=event_manager, game_state=game_state, _logger=logger),
+                FakeBadInteractiveBehavior(event_manager=event_manager, game_state=game_state, _logger=logger),
+            ])
+
         return Bot(
-            usable_behaviors=[
-                mule_accept_kamas_behavior,
-                mule_give_behavior,
-                dungeon_behavior,
-                sale_hotel_prices_behavior,
-                auto_equipment_behavior,
-                fake_bad_movement_behavior,
-                fake_bad_interactive_behavior,
-                ogrine_subscription_behavior,
-                paysafecard_subscription_behavior,
-            ],
+            usable_behaviors=usable_behaviors,
             account=account,
             grid_signals=grid_signals,
             game_info_signals=game_info_signals,

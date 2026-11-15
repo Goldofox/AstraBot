@@ -28,8 +28,10 @@ class BehaviorSettingsPanel(SettingsPanel):
             check = CheckBox(label, self)
             self.form.addRow(check)
             self.checks[name] = check
+            check.clicked.connect(self.queue_save)
         self.automation = CheckBox("Automatically create and authenticate accounts", self)
         self.form.addRow(self.automation)
+        self.automation.clicked.connect(self.queue_save)
 
     def reload(self) -> None:
         def render(settings: GlobalSettings) -> None:

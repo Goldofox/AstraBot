@@ -24,7 +24,6 @@ from DBDofusUnity.datas.protos.non_obf.connection.login_message_pb2 import (
 from DBDofusUnity.dofus_unity_reader.game_constants.server import ServerEnum
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
 from src.core.bot.bot import Bot
-from src.core.config import DEBUG
 from src.protocol.protocol import decode_varint_size, encode_msg
 from src.protocol.protocol_connection import (
     get_conn_msg,
@@ -137,7 +136,7 @@ class ConnectionProxy(Proxy):
             if recorder is not None:
                 recorder.record_conn_message(msg, from_server, source)
 
-        if DEBUG and self.bot and self.bot.msg_info_signals.capture_enabled:
+        if self.bot and self.bot.msg_info_signals.capture_enabled:
             msg_info = get_conn_msg_info(msg, from_server)
             self.bot.msg_info_signals.msg_info.emit(msg_info, was_send_from_proxy)
 

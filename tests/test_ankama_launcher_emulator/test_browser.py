@@ -16,7 +16,7 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
         playwright.chromium.launch.side_effect = browser_module.Error("Executable doesn't exist")
         with (
             patch.object(browser_module, "async_playwright", return_value=playwright_context),
-            patch.object(browser_module, "DEBUG", False),
+            patch.object(browser_module, "_trace_directory", return_value=Path("debug/traces/test")),
         ):
             with self.assertRaisesRegex(browser_module.RuntimeSetupError, "Playwright Chromium"):
                 async with browser_module.launch_browser_context(proxy_url=None):
@@ -27,7 +27,7 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
         browser.new_context.side_effect = browser_module.Error("context failed")
         with (
             patch.object(browser_module, "async_playwright", return_value=playwright_context),
-            patch.object(browser_module, "DEBUG", False),
+            patch.object(browser_module, "_trace_directory", return_value=Path("debug/traces/test")),
         ):
             with self.assertRaisesRegex(browser_module.Error, "context failed"):
                 async with browser_module.launch_browser_context(proxy_url=None):
@@ -40,7 +40,6 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
 
         with (
             patch.object(browser_module, "async_playwright", return_value=playwright_context),
-            patch.object(browser_module, "DEBUG", True),
             patch.object(browser_module, "_trace_directory", return_value=trace_directory),
         ):
             async with browser_module.launch_browser_context(
@@ -69,12 +68,13 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
         context.tracing.stop.assert_awaited_once_with(path=trace_directory / "trace.zip")
         browser.close.assert_awaited_once()
 
+
     async def test_skips_tracing_in_production_mode(self) -> None:
         playwright, browser, context, playwright_context = _browser_launch_fakes()
 
         with (
             patch.object(browser_module, "async_playwright", return_value=playwright_context),
-            patch.object(browser_module, "DEBUG", False),
+            patch.object(browser_module, "IS_PACKAGED", True),
             patch.object(browser_module, "_trace_directory") as trace_directory,
         ):
             async with browser_module.launch_browser_context(proxy_url=None):

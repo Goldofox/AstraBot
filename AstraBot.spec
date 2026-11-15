@@ -25,7 +25,14 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'pytest',
+        '_pytest',
+        'qfluentwidgets.common.image_utils',
+        'src.core.behaviors.movements.fake_bad_movement_behavior',
+        'src.core.behaviors.interactives.fake_bad_interactive_behavior',
+        'DBDofusUnity.proto_mapper_assembly.controllers.pinned_pairs',
+    ],
     noarchive=False,
     optimize=0,
 )
@@ -36,6 +43,11 @@ def keep_browser_file(entry):
 
 a.binaries = [entry for entry in a.binaries if keep_browser_file(entry)]
 a.datas = [entry for entry in a.datas if keep_browser_file(entry)]
+a.datas = [
+    entry for entry in a.datas
+    if Path(entry[0]).suffix not in {'.proto', '.pyi', '.pyc'}
+    and '__pycache__' not in Path(entry[0]).parts
+]
 
 # Preserve source JSON files and runtime paths; only compact the packaged copies.
 compact_root = Path(SPECPATH) / 'build' / 'package-data'

@@ -27,6 +27,7 @@ class ScheduleSettingsPanel(SettingsPanel):
         ]
         for day in self.days:
             self.form.addRow(day)
+            day.changed.connect(self.queue_save)
         self.selection.selected.connect(self.select)
         self.bind_deletion(self.selection, delete_schedule, self.changed.emit)
 
@@ -55,6 +56,7 @@ class ScheduleSettingsPanel(SettingsPanel):
         )
 
     def select(self) -> None:
+        self.finish_edit()
         identifier = self.selection.selected_key or ""
         profile = self.entries.get(identifier)
         self.identifier.setText(identifier)
@@ -73,9 +75,11 @@ class ScheduleSettingsPanel(SettingsPanel):
             name_fr=self.name.text().strip(), proxy_id=self.proxy.currentText(), slots_by_day=slots
         )
         identifier = self.identifier.text().strip()
-        create = self.selection.selected_key is None
+        create = not self.identifier.isReadOnly()
 
         def done(_: None) -> None:
+            if self.selection.selected_key in (None, identifier):
+                self.selection.select_key(identifier)
             self.changed.emit()
             self.reload()
 

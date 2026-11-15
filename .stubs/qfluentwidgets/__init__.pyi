@@ -146,6 +146,7 @@ class TreeWidget(QTreeWidget):
 
 class ComboBox(QPushButton):
     currentIndexChanged: pyqtSignal
+    activated: pyqtSignal
     items: list[Any]
     dropMenu: Any
     def __init__(self, parent: QWidget | None = None) -> None: ...

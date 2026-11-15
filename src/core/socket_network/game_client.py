@@ -6,7 +6,6 @@ from PyQt6.QtCore import QMetaObject, Qt
 
 from DBDofusUnity.datas.protos.non_obf.game.game_message_pb2 import Request
 from src.consts import MESSAGES_WITH_UID
-from src.core import config
 from src.core.behaviors.behavior import BehaviorState
 from src.core.socket_network.base_client import BaseClient
 from src.protocol.protocol import (
@@ -44,12 +43,12 @@ class GameClient(BaseClient):
     def on_received_msg_datas(self, msg_datas: bytes) -> None:
         size, pos = decode_varint_size(msg_datas)
         _, clear_sub_msg, obf_sub_msg, uid = get_game_msg(
-            msg_datas[pos : pos + size], config.DEBUG, from_server=True
+            msg_datas[pos : pos + size], True, from_server=True
         )
         recorder = self.bot.debug_recorder
         if recorder is not None:
             recorder.record_game_message(clear_sub_msg, obf_sub_msg, uid, True, "server")
-        if config.DEBUG and self.bot.msg_info_signals.capture_enabled:
+        if self.bot.msg_info_signals.capture_enabled:
             msg_infos = get_game_msg_info(clear_sub_msg, obf_sub_msg, uid, True)
             self.bot.msg_info_signals.msg_info.emit(msg_infos, False)
         if clear_sub_msg:
@@ -67,7 +66,7 @@ class GameClient(BaseClient):
             if recorder is not None:
                 recorder.record_game_message(clear_sub_msg, obf_sub_msg, uid, False, "framework_injected")
             self.bot.event_manager.process_msg(clear_sub_msg)
-            if config.DEBUG and self.bot.msg_info_signals.capture_enabled:
+            if self.bot.msg_info_signals.capture_enabled:
                 msg_infos = get_game_msg_info(clear_sub_msg, obf_sub_msg, uid, False)
                 self.bot.msg_info_signals.msg_info.emit(msg_infos, True)
 

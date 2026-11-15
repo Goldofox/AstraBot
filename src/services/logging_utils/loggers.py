@@ -1,6 +1,5 @@
 import logging
 
-from src.core import config
 from src.core.signals.log_signals import LogSignals
 from src.services.debug_recorder import DebugRecorder, DebugRecorderLogHandler
 from src.services.logging_utils.filters import ContextFallbackFilter
@@ -46,7 +45,6 @@ class BotLogger(logging.Logger):
             self.addHandler(self.debug_recorder_handler)
 
         self.gui_formatter = logging.Formatter("[%(context)s] - %(message)s")
-        if config.DEBUG:
-            self.log_signal_handler = LogSignalHandler(log_signals)
-            self.log_signal_handler.setFormatter(self.gui_formatter)
-            self.addHandler(self.log_signal_handler)
+        self.log_signal_handler = LogSignalHandler(log_signals)
+        self.log_signal_handler.setFormatter(self.gui_formatter)
+        self.addHandler(self.log_signal_handler)

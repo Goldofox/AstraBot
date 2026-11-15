@@ -40,6 +40,7 @@ from src.protocol.message_names import (
 )
 from src.protocol.protocol_game import POOL
 from src.services.debug_recorder import DebugRecorder
+from src.utils.project_paths import IS_PACKAGED
 lazy from DBDofusUnity.proto_mapper_assembly.controllers.pinned_pairs import (
     upsert_pinned_field_mapping,
     upsert_pinned_pair,
@@ -196,7 +197,7 @@ class DebugTab(QWidget):
         self,
         bot: Bot,
         global_log_signals: LogSignals,
-        use_recorder_feed: bool = True,
+        use_recorder_feed: bool = not IS_PACKAGED,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -215,11 +216,9 @@ class DebugTab(QWidget):
         self._feed_timer = QTimer(self)
         self._feed_timer.setInterval(100)
         self._feed_timer.timeout.connect(self._poll_recorder_messages)
-        if self._use_recorder_feed:
-            self.bot.msg_info_signals.set_capture_enabled(False)
-        else:
+        self.bot.msg_info_signals.set_capture_enabled(False)
+        if not self._use_recorder_feed:
             self.bot.msg_info_signals.msg_info.connect(profiled_slot(self.on_receive_msg_info))
-            self.bot.msg_info_signals.set_capture_enabled(True)
 
     def init_top_content(self) -> None:
         top_content = QWidget(self)
@@ -254,7 +253,8 @@ class DebugTab(QWidget):
 
         self.msg_table = MessageTable(parent=self)
         self.msg_table.table.clicked.connect(self.on_click_msg)
-        self.msg_table.table.doubleClicked.connect(self.on_double_click_msg)
+        if not IS_PACKAGED:
+            self.msg_table.table.doubleClicked.connect(self.on_double_click_msg)
 
         left_widget = QWidget(self)
         left_widget_layout = QVBoxLayout()
@@ -357,7 +357,7 @@ class DebugTab(QWidget):
 
     @pyqtSlot(MessageInfo, bool)
     def on_receive_msg_info(self, msg_info: MessageInfo, was_send_from_proxy: bool) -> None:
-        if self.is_playing:
+        if self.is_playing and self.isVisible():
             self.msg_table.add_row(msg_info, was_send_from_proxy)
 
     @pyqtSlot()
@@ -368,7 +368,7 @@ class DebugTab(QWidget):
             if self.isVisible():
                 self._feed_timer.start()
         else:
-            self.bot.msg_info_signals.set_capture_enabled(True)
+            self.bot.msg_info_signals.set_capture_enabled(self.isVisible())
         if self.logs_widget is not None:
             self.logs_widget.set_capture_enabled(True)
         self.play_btn.hide()
@@ -398,12 +398,16 @@ class DebugTab(QWidget):
         if self._use_recorder_feed and self.is_playing:
             self._poll_recorder_messages()
             self._feed_timer.start()
+        elif not self._use_recorder_feed:
+            self.bot.msg_info_signals.set_capture_enabled(self.is_playing)
         super().showEvent(a0)
 
     def hideEvent(self, a0: QHideEvent | None) -> None:
         self.msg_table.set_updates_active(False)
         if self._use_recorder_feed:
             self._feed_timer.stop()
+        else:
+            self.bot.msg_info_signals.set_capture_enabled(False)
         super().hideEvent(a0)
 
     def _poll_recorder_messages(self) -> None:
@@ -414,7 +418,7 @@ class DebugTab(QWidget):
 
     def _recorder(self) -> DebugRecorder:
         recorder = self.bot.debug_recorder
-        assert recorder is not None, "The recorder feed requires DEBUG=1"
+        assert recorder is not None, "The recorder feed requires a debug recorder"
         return recorder
 
     @cached_property
@@ -422,7 +426,8 @@ class DebugTab(QWidget):
         detail = MessageDetailPanel(parent=self.detail_stack)
         self.detail_stack.addWidget(detail)
         detail.quit_btn.clicked.connect(self.on_close_detail)
-        detail.lock_pinned_fields_btn.clicked.connect(self.on_lock_pinned_fields)
+        if not IS_PACKAGED:
+            detail.lock_pinned_fields_btn.clicked.connect(self.on_lock_pinned_fields)
         return detail
 
     @pyqtSlot(QModelIndex)
@@ -444,6 +449,8 @@ class DebugTab(QWidget):
 
     @pyqtSlot(QModelIndex)
     def on_double_click_msg(self, model_index: QModelIndex) -> None:
+        if IS_PACKAGED:
+            return
         source_index = self.msg_table.table.proxy_model.mapToSource(model_index)
         model = self.msg_table.table.item_model
         msg_info = _require_message_info(
@@ -464,7 +471,7 @@ class DebugTab(QWidget):
 
     @pyqtSlot()
     def on_lock_pinned_fields(self) -> None:
-        if self._current_detail_msg_info is None:
+        if IS_PACKAGED or self._current_detail_msg_info is None:
             return
 
         message_pair = _extract_pinned_pair_names_for_fields(self._current_detail_msg_info)

@@ -1,10 +1,12 @@
 from ankama_launcher_emulator.interfaces.schedule_profile import TimeSlot
-from PyQt6.QtCore import QTime
+from PyQt6.QtCore import QSignalBlocker, QTime, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QTimeEdit, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CardWidget, PushButton
 
 
 class TimeSlotEditor(QWidget):
+    changed = pyqtSignal()
+
     def __init__(self, day: str, slot: TimeSlot, parent: QWidget) -> None:
         super().__init__(parent)
         layout = QHBoxLayout(self)
@@ -26,6 +28,8 @@ class TimeSlotEditor(QWidget):
         layout.addWidget(self.remove_button)
         self.start.timeChanged.connect(self.update_overnight)
         self.end.timeChanged.connect(self.update_overnight)
+        self.start.timeChanged.connect(self.changed.emit)
+        self.end.timeChanged.connect(self.changed.emit)
         self.update_overnight()
 
     def update_overnight(self) -> None:
@@ -36,6 +40,8 @@ class TimeSlotEditor(QWidget):
 
 
 class ScheduleDayEditor(CardWidget):
+    changed = pyqtSignal()
+
     def __init__(self, day: str, parent: QWidget) -> None:
         super().__init__(parent)
         self.day = day
@@ -66,7 +72,9 @@ class ScheduleDayEditor(CardWidget):
         self.rows.append(row)
         self.slots_layout.addWidget(row)
         row.remove_button.clicked.connect(lambda: self.remove_slot(row))
+        row.changed.connect(self.changed.emit)
         self.empty.hide()
+        self.changed.emit()
 
     def remove_slot(self, row: TimeSlotEditor) -> None:
         self.rows.remove(row)
@@ -74,12 +82,14 @@ class ScheduleDayEditor(CardWidget):
         row.hide()
         row.deleteLater()
         self.empty.setVisible(not self.rows)
+        self.changed.emit()
 
     def set_slots(self, slots: list[TimeSlot]) -> None:
-        for row in self.rows[:]:
-            self.remove_slot(row)
-        for slot in slots:
-            self.add_slot(slot)
+        with QSignalBlocker(self):
+            for row in self.rows[:]:
+                self.remove_slot(row)
+            for slot in slots:
+                self.add_slot(slot)
 
     def values(self) -> list[TimeSlot]:
         return [row.value() for row in self.rows]

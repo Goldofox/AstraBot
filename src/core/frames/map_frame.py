@@ -19,7 +19,6 @@ from DBDofusUnity.datas.protos.non_obf.game.gamemap_pb2 import (
 from DBDofusUnity.datas.protos.non_obf.game.npc_pb2 import NpcDialogQuestionEvent
 from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
 from DBDofusUnity.dofus_unity_reader.game_constants.map_id import MAP_IDS_THAT_POP_DIALOG
-from src.core import config
 from src.core.frames.frame import Frame
 from src.core.signals.world_signals import WorldSignals
 from src.services.human_timings import HumanTimingsService
@@ -72,8 +71,7 @@ class MapFrame(Frame):
         self.logger.debug(f"New map : {message.map_id}")
         assert self.game_state.map.map_id == message.map_id
         self.game_state.map.is_in_haven_bag = message.HasField("haven_bag_information")
-        if config.DEBUG:
-            self.world_signals.curr_map_pos.emit(DataReader().map_info_by_map_id[message.map_id])
+        self.world_signals.curr_map_pos.emit(DataReader().map_info_by_map_id[message.map_id])
         self.game_state.map.is_in_map_transition = False
         self.game_state.map.discard_map_stay_banned_transitions()
         self.register_map_popup_dialog_leave(message.map_id)

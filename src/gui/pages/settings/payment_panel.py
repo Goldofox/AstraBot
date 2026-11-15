@@ -14,7 +14,6 @@ class PaymentSettingsPanel(SettingsPanel):
         self.pin = self.line("Paysafecard code")
         self.count = BodyLabel("", self)
         self.form.addRow(BodyLabel("Saved codes", self), self.count)
-        self.save_button.setText("Add code")
 
     def reload(self) -> None:
         def render(pins: list[str]) -> None:

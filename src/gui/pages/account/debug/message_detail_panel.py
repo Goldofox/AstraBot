@@ -17,6 +17,7 @@ from qfluentwidgets.components.widgets.tool_tip import ToolTipFilter
 
 from src.gui.components.qfluent_widget.dynamic_tree_widget import DynamicTreeWidget
 from utils.protobuf import is_repeated_field
+from src.utils.project_paths import IS_PACKAGED
 
 ABSENT_FIELD_DISPLAY_VALUE = "<absent>"
 
@@ -150,6 +151,8 @@ class MessageDetailPanel(QWidget):
 
         self.lock_pinned_fields_btn = PrimaryPushButton(FluentIcon.PIN, "Lock pinned fields", top_bar)
         top_bar_layout.addWidget(self.lock_pinned_fields_btn)
+        self.lock_pinned_fields_btn.setVisible(not IS_PACKAGED)
+        self.lock_pinned_fields_btn.setEnabled(not IS_PACKAGED)
 
         self.show_absent_fields_btn = TransparentToolButton(FluentIcon.VIEW, top_bar)
         self.show_absent_fields_btn.setCheckable(True)

@@ -6,7 +6,6 @@ from google.protobuf.message import Message
 
 from DBDofusUnity.datas.protos.non_obf.connection.login_message_pb2 import LoginMessage
 from src.consts import DOFUS_CONNECTION_URL
-from src.core import config
 from src.core.behaviors.behavior import BehaviorState
 from src.core.behaviors.socket.connection_behavior import (
     ConnectionBehavior,
@@ -48,7 +47,7 @@ class ConnectionClient(BaseClient):
             if recorder is not None:
                 recorder.record_conn_message(clear_sub_msg, False, "framework_injected")
             self.bot.event_manager.process_msg(clear_sub_msg)
-            if config.DEBUG and self.bot.msg_info_signals.capture_enabled:
+            if self.bot.msg_info_signals.capture_enabled:
                 msg_info = get_conn_msg_info(clear_sub_msg, False)
                 self.bot.msg_info_signals.msg_info.emit(msg_info, True)
         except OSError as err:
@@ -61,7 +60,7 @@ class ConnectionClient(BaseClient):
         recorder = self.bot.debug_recorder
         if recorder is not None:
             recorder.record_conn_message(msg, True, "server")
-        if config.DEBUG and self.bot.msg_info_signals.capture_enabled:
+        if self.bot.msg_info_signals.capture_enabled:
             msg_info = get_conn_msg_info(msg, True)
             self.bot.msg_info_signals.msg_info.emit(msg_info, False)
         self.bot.event_manager.process_msg(msg)

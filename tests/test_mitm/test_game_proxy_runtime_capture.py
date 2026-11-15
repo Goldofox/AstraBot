@@ -55,7 +55,6 @@ def test_proxy_captures_only_messages_not_injected_by_framework(
 
     monkeypatch.setattr(game_proxy_module, "get_game_msg", get_message)
     monkeypatch.setattr(game_proxy_module, "decode_varint_size", decode_size)
-    monkeypatch.setattr(game_proxy_module.config, "DEBUG", True)
 
     proxy.on_sent_msg_datas(b"x", was_send_from_proxy, from_server=from_server)
 

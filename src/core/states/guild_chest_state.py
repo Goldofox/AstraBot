@@ -7,7 +7,6 @@ from DBDofusUnity.dofus_unity_reader.game_constants.item import (
     CategoryItemEnum,
     ItemTypeEnum,
 )
-from src.core import config
 from src.core.config import BehaviorSettings
 from src.core.engine.items.item import get_gatherer_item_gids, get_protector_drop_item_ids
 from src.core.signals.player_signals import GameInfoSignals
@@ -62,8 +61,7 @@ class GuildChestState(State):
     @tab_number.setter
     def tab_number(self, value: int) -> None:
         self._tab_number = value
-        if config.DEBUG:
-            self.game_info_signals.tab_number.emit(value)
+        self.game_info_signals.tab_number.emit(value)
 
     @property
     def has_guild(self) -> bool:
@@ -72,8 +70,7 @@ class GuildChestState(State):
     @has_guild.setter
     def has_guild(self, value: bool) -> None:
         self._has_guild = value
-        if config.DEBUG:
-            self.game_info_signals.has_guild.emit(value)
+        self.game_info_signals.has_guild.emit(value)
 
     @property
     def can_access_guild_chest(self) -> bool:

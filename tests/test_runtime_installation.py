@@ -83,16 +83,16 @@ def test_invalid_json_reports_filename_without_private_input(tmp_path: Path) -> 
     assert "private-secret" in path.read_text()
 
 
-def test_debug_environment_is_respected(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DEBUG", raising=False)
-    assert get_bool_from_env("DEBUG") is False
-    monkeypatch.setenv("DEBUG", "0")
-    assert get_bool_from_env("DEBUG") is False
-    monkeypatch.setenv("DEBUG", "true")
-    assert get_bool_from_env("DEBUG") is True
-    monkeypatch.setenv("DEBUG", "invalid")
+def test_boolean_environment_values_are_validated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TEST_BOOL_FLAG", raising=False)
+    assert get_bool_from_env("TEST_BOOL_FLAG") is False
+    monkeypatch.setenv("TEST_BOOL_FLAG", "0")
+    assert get_bool_from_env("TEST_BOOL_FLAG") is False
+    monkeypatch.setenv("TEST_BOOL_FLAG", "true")
+    assert get_bool_from_env("TEST_BOOL_FLAG") is True
+    monkeypatch.setenv("TEST_BOOL_FLAG", "invalid")
     with pytest.raises(runtime_support.RuntimeSetupError):
-        get_bool_from_env("DEBUG")
+        get_bool_from_env("TEST_BOOL_FLAG")
 
 
 def test_worker_logs_failure_and_finishes_without_error_subscriber(caplog: pytest.LogCaptureFixture) -> None:

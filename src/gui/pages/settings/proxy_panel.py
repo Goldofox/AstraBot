@@ -40,6 +40,7 @@ class ProxySettingsPanel(SettingsPanel):
         self.perform(ProxyController().get_all, render)
 
     def select(self) -> None:
+        self.finish_edit()
         identifier = self.selection.selected_key or ""
         proxy = self.entries.get(identifier)
         self.identifier.setText(identifier)
@@ -64,9 +65,11 @@ class ProxySettingsPanel(SettingsPanel):
             self.invalid()
             return
         identifier = self.identifier.text().strip()
-        create = self.selection.selected_key is None
+        create = not self.identifier.isReadOnly()
 
         def done(_: None) -> None:
+            if self.selection.selected_key in (None, identifier):
+                self.selection.select_key(identifier)
             self.changed.emit()
             self.reload()
 

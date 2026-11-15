@@ -1,19 +1,31 @@
 from collections.abc import Callable
+import logging
 
 from pydantic import ValidationError
-from PyQt6.QtGui import QShowEvent
-from PyQt6.QtWidgets import QFormLayout, QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, ComboBox, LineEdit, PrimaryPushButton, PushButton
+from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtGui import QHideEvent, QShowEvent
+from PyQt6.QtWidgets import QFormLayout, QVBoxLayout, QWidget
+from qfluentwidgets import BodyLabel, ComboBox, LineEdit
 from qfluentwidgets.components.dialog_box.dialog import MessageBox
 
 from src.gui.pages.settings.settings_overview import SettingsOverview
 from src.services.background import run_in_background
 from src.utils.runtime_support import RuntimeSetupError, error_message
 
+logger = logging.getLogger(__name__)
+
 
 class SettingsPanel(QWidget):
+    saved = pyqtSignal()
+
     def __init__(self, description: str) -> None:
         super().__init__()
+        self._saving = False
+        self._dirty = False
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(600)
+        self._save_timer.timeout.connect(self.flush_save)
         self._deletion_handlers: dict[SettingsOverview, Callable[[str], None]] = {}
         layout = QVBoxLayout(self)
         layout.setSpacing(0)
@@ -28,26 +40,34 @@ class SettingsPanel(QWidget):
         self.form.setHorizontalSpacing(20)
         self.form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         layout.addLayout(self.form)
-        self.status = BodyLabel("", self)
-        self.status.setWordWrap(True)
-        layout.addWidget(self.status)
-        layout.addSpacing(20)
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addSpacing(8)
-        self.save_button = PrimaryPushButton("Save", self)
-        self.cancel_button = PushButton("Cancel / refresh", self)
-        buttons_layout.addWidget(self.save_button)
-        buttons_layout.addSpacing(8)
-        buttons_layout.addWidget(self.cancel_button)
-        buttons_layout.addStretch()
-        layout.addLayout(buttons_layout)
         layout.addStretch()
-        self.save_button.clicked.connect(self.save)
-        self.cancel_button.clicked.connect(self.reload)
+
+    def queue_save(self) -> None:
+        if self.isEnabled() and not self._saving:
+            self._dirty = True
+            self._save_timer.start()
+
+    def flush_save(self) -> None:
+        if not self._dirty or self._saving:
+            return
+        self._save_timer.stop()
+        self._saving = True
+        try:
+            self.save()
+        except ValidationError:
+            self.invalid("Invalid configuration. Check the provided fields.")
+        except ValueError as error:
+            self.invalid(str(error))
+
+    def finish_edit(self) -> None:
+        self.flush_save()
+        self._dirty = False
 
     def line(self, label: str) -> LineEdit:
         widget = LineEdit(self)
         self.form.addRow(BodyLabel(label, self), widget)
+        widget.textEdited.connect(self.queue_save)
+        widget.editingFinished.connect(self.flush_save)
         return widget
 
     def combo(self, label: str, items: list[str] | None = None) -> ComboBox:
@@ -55,6 +75,7 @@ class SettingsPanel(QWidget):
         if items:
             widget.addItems(items)
         self.form.addRow(BodyLabel(label, self), widget)
+        widget.activated.connect(self.queue_save)
         return widget
 
     def overview(self, headers: list[str], new_label: str | None = None) -> SettingsOverview:
@@ -102,7 +123,6 @@ class SettingsPanel(QWidget):
         background: bool = True,
     ) -> None:
         self.setEnabled(False)
-        self.status.setText("In progress…")
 
         def work(_: Callable[[str], None]) -> ResultT:
             try:
@@ -113,13 +133,19 @@ class SettingsPanel(QWidget):
                 raise RuntimeSetupError(str(error)) from error
 
         def success(result: ResultT) -> None:
+            saved = self._saving
+            self._saving = False
+            if saved:
+                self._dirty = False
             self.setEnabled(True)
-            self.status.setText("")
             done(result)
+            if saved:
+                self.saved.emit()
 
         def failure(error: object) -> None:
+            self._saving = False
             self.setEnabled(True)
-            self.status.setText(error_message(error))
+            logger.warning("Settings operation failed: %s", error_message(error))
 
         if background:
             run_in_background(work, on_success=success, on_error=failure, parent=self)
@@ -133,8 +159,12 @@ class SettingsPanel(QWidget):
 
     def showEvent(self, a0: QShowEvent | None) -> None:
         super().showEvent(a0)
-        if self.isEnabled():
+        if self.isEnabled() and not self._dirty:
             self.reload()
+
+    def hideEvent(self, a0: QHideEvent | None) -> None:
+        self.flush_save()
+        super().hideEvent(a0)
 
     def reload(self) -> None:
         raise NotImplementedError
@@ -143,4 +173,5 @@ class SettingsPanel(QWidget):
         raise NotImplementedError
 
     def invalid(self, message: str = "Check the numeric field values.") -> None:
-        self.status.setText(message)
+        self._saving = False
+        logger.warning("Settings were not saved: %s", message)

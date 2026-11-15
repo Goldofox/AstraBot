@@ -50,7 +50,6 @@ def validate_package(folder: Path) -> None:
             USERPROFILE=str(profile),
             APPDATA=str(profile / "AppData/Roaming"),
             LOCALAPPDATA=str(profile / "AppData/Local"),
-            DEBUG="1",
             PYTHON_DOTENV_DISABLED="1",
             PLAYWRIGHT_BROWSERS_PATH=str(root / "absent-browser-cache"),
             THISISASTRABOT_SKIP_UPDATE_ONCE="1",

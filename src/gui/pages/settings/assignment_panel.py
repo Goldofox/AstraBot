@@ -3,6 +3,7 @@ from ankama_launcher_emulator.controller.schedule_profile import ScheduleProfile
 from ankama_launcher_emulator.interfaces.local_storage import BotRecord
 from ankama_launcher_emulator.interfaces.schedule_profile import ScheduleProfile
 from PyQt6.QtCore import pyqtSignal
+from qfluentwidgets import BodyLabel
 
 from src.controller.bot_config import BotConfigService
 from src.gui.pages.settings.settings_panel import SettingsPanel
@@ -16,8 +17,12 @@ class AssignmentSettingsPanel(SettingsPanel):
             "Choose the schedule for an existing account. Active sessions finish with their current schedule."
         )
         self.entries: dict[str, BotRecord] = {}
+        self.selected_login: str | None = None
         self.account = self.overview(["Account", "Email", "Schedule", "Connection", "Status", "Reason"])
         self.profile = self.combo("Schedule")
+        self.status = BodyLabel("", self)
+        self.status.setWordWrap(True)
+        self.form.addRow(self.status)
         self.account.selected.connect(self.select)
 
     def reload(self) -> None:
@@ -46,13 +51,15 @@ class AssignmentSettingsPanel(SettingsPanel):
         )
 
     def select(self) -> None:
+        self.finish_edit()
+        self.selected_login = self.account.selected_key
         record = self.entries.get(self.account.selected_key or "")
         self.profile.setCurrentIndex(0)
         if record and record.schedule_profile:
             if self.profile.findText(record.schedule_profile) < 0:
                 self.profile.addItem(record.schedule_profile)
             self.profile.setCurrentText(record.schedule_profile)
-        self.save_button.setEnabled(record is not None and record.quarantine_reason is None)
+        self.profile.setEnabled(record is not None and record.quarantine_reason is None)
         self.status.setText(
             "Restore the account from Activity before changing its schedule."
             if record and record.quarantine_reason
@@ -60,7 +67,7 @@ class AssignmentSettingsPanel(SettingsPanel):
         )
 
     def save(self) -> None:
-        login = self.account.selected_key or ""
+        login = self.selected_login or ""
         profile = self.profile.currentText() if self.profile.currentIndex() > 0 else None
 
         def done(_: None) -> None:

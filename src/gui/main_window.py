@@ -19,7 +19,6 @@ lazy from ankama_launcher_emulator.controller.bot_storage import BotStorageContr
 from src.consts import LOGO_FILE, MIN_DATE
 from src.controller.bot_config import BotConfig, BotConfigService
 from src.controller.player_info_storage import PlayerInfoSnapshot, PlayerInfoStorage
-from src.core import config
 from src.core.signals.log_signals import LogSignals
 from src.core.signals.shared_farm_signals import SharedSignals
 from src.gui.components.manual_confirmation import ManualConfirmationDialogs
@@ -46,8 +45,7 @@ class MainWindow(AppFluentWindow):
         super().__init__(parent=None)
 
         self.global_log_signals = LogSignals()
-        if config.DEBUG:
-            init_root_gui_logging(self.global_log_signals)
+        init_root_gui_logging(self.global_log_signals)
 
         self.title = title
         self.shared_signals = shared_signals
@@ -105,7 +103,12 @@ class MainWindow(AppFluentWindow):
             position=NavigationItemPosition.BOTTOM,
         )
         self.settings_page.schedules_changed.connect(self._refresh_schedules)
+        self.settings_page.behaviors_changed.connect(self._refresh_launch_summaries)
         self.confirmation_dialogs = ManualConfirmationDialogs(self)
+
+    def _refresh_launch_summaries(self) -> None:
+        for page in self.account_widgets:
+            page.actions_tab.refresh_launch_summary()
 
     def _refresh_schedules(self) -> None:
         if not BotConfigService.use_bot_config_json:

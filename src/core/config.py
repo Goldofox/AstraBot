@@ -1,16 +1,12 @@
 import datetime
 from random import uniform
 
-from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict
 
 from DBDofusUnity.dofus_unity_reader.game_constants.job import JobEnum
 from DBDofusUnity.dofus_unity_reader.game_constants.map_id import MapIdEnum
-from src.utils.project_paths import ENV_PATH, IS_PACKAGED
-from utils.env_config import get_bool_from_env
+from src.utils.project_paths import IS_PACKAGED
 
-load_dotenv(ENV_PATH)
-DEBUG = get_bool_from_env("DEBUG", default=True)
 ENABLE_MSG_CAPTURE = not IS_PACKAGED
 
 ENABLE_SESSION_CONTEXT = False

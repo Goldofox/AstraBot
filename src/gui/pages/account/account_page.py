@@ -9,7 +9,6 @@ from qfluentwidgets import SegmentedWidget
 
 from src.consts import MIN_DATE
 from src.controller.player_info_storage import PlayerInfoSnapshot
-from src.core import config
 from src.core.signals.log_signals import LogSignals
 from src.gui.pages.account.account_summary import AccountSummary
 from src.gui.pages.account.actions.actions_tab import ActionsTab
@@ -53,11 +52,8 @@ class AccountPage(QWidget):
             "Actions": lambda: self.actions_tab,
             "Character": lambda: CharacterTab(bot, self.stacked_widget, snapshot=snapshot),
             "Inventory": lambda: InventoryTab(bot, self.stacked_widget),
+            "Debug": lambda: DebugTab(bot, global_log_signals, parent=self.stacked_widget),
         }
-        if config.DEBUG:
-            self._factories["Debug"] = lambda: DebugTab(
-                bot, global_log_signals, parent=self.stacked_widget
-            )
         for label in self._factories:
             item = self.pivot.addItem(
                 routeKey=label,

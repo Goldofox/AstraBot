@@ -17,7 +17,6 @@ assert PROFILING_ENABLED is {(not packaged)!r}
 """
     environment = dict(
         os.environ,
-        DEBUG="1",
         ENABLE_MSG_CAPTURE="1",
         PROFILING_ENABLED="1",
         PYTHON_DOTENV_DISABLED="1",

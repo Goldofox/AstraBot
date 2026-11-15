@@ -16,7 +16,6 @@ from DBDofusUnity.datas.protos.non_obf.game.client_verification_pb2 import (
     ClientChallengeProofRequest,
     ClientIdRequest,
 )
-from src.core.config import DEBUG as DEBUG
 from src.utils.project_paths import BUNDLE_ROOT, ENV_PATH, USER_DATA_ROOT
 
 load_dotenv(ENV_PATH)

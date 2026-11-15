@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from threading import Event
 
-import src.core.config
 from ankama_launcher_emulator.haapi.haapi import (
     get_game_sub_info_by_login,
 )
@@ -50,14 +49,12 @@ class PlayerState(State):
         if value == self._level:
             return
         self._level = value
-        if src.core.config.DEBUG:
-            self.game_info_signals.level.emit(value)
+        self.game_info_signals.level.emit(value)
 
     @property
     def subscription_end_date(self) -> datetime:
         game_sub = get_game_sub_info_by_login(self.login)
-        if src.core.config.DEBUG:
-            self.game_info_signals.subscription_end_date.emit(game_sub.end_of_subscribe or consts.MIN_DATE)
+        self.game_info_signals.subscription_end_date.emit(game_sub.end_of_subscribe or consts.MIN_DATE)
         return game_sub.end_of_subscribe or consts.MIN_DATE
 
     @property
@@ -77,8 +74,7 @@ class PlayerState(State):
     @character_id.setter
     def character_id(self, value: int):
         self._character_id = value
-        if src.core.config.DEBUG:
-            self.game_info_signals.character_id.emit(value)
+        self.game_info_signals.character_id.emit(value)
 
     @property
     def character_name(self):
@@ -101,5 +97,4 @@ class PlayerState(State):
     @server_id.setter
     def server_id(self, value: int):
         self._server_id = value
-        if src.core.config.DEBUG:
-            self.game_info_signals.server_id.emit(value)
+        self.game_info_signals.server_id.emit(value)
