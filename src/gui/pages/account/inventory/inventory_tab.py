@@ -15,7 +15,7 @@ from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
 from DBDofusUnity.dofus_unity_reader.game_constants.inventory_position import (
     CharacterInventoryPositionEnum,
 )
-from src.gui.components.item_grid import ItemGrid, ItemGridContainer
+from src.gui.components.item_grid import GRID_SCROLLBAR_SPACE, ItemGrid, ItemGridContainer
 from src.gui.pages.account.inventory.bank_panel import BankPanel
 from src.gui.pages.account.inventory.equipment_panel import (
     EquipmentPanel,
@@ -40,9 +40,13 @@ class InventoryTab(QWidget):
         self._rebuild_timer.timeout.connect(self._rebuild_sorted_list)
 
         self.equipment_panel = EquipmentPanel(self)
+        self.equipment_panel.hide()
 
         self.list_widget = ItemGrid(self)
+        self.grid_container = ItemGridContainer(self.list_widget, self)
+        self.grid_container.set_placeholder("Inventory data has not been received yet.")
         self.weight_label = BodyLabel(text="Weight: 0/0", parent=self)
+        self.weight_label.hide()
         self.loading_label = CaptionLabel(text="Loading inventory…", parent=self)
         self.loading_label.hide()
         bottom_layout = QHBoxLayout()
@@ -53,10 +57,10 @@ class InventoryTab(QWidget):
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.equipment_panel)
         inventory_layout = QVBoxLayout()
-        title = BodyLabel(text="Inventory", parent=self)
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        inventory_layout.addWidget(title)
-        inventory_layout.addWidget(ItemGridContainer(self.list_widget, self), 1)
+        self.inventory_title = BodyLabel(text="Inventory", parent=self)
+        self.inventory_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        inventory_layout.addWidget(self.inventory_title)
+        inventory_layout.addWidget(self.grid_container, 1)
         inventory_layout.addLayout(bottom_layout)
         content_layout.addLayout(inventory_layout, 1)
         self.bank_panel = BankPanel(bot, self)
@@ -96,8 +100,7 @@ class InventoryTab(QWidget):
         self.items_by_uid.clear()
         self._rebuild_timer.stop()
         if self.isVisible():
-            self.list_widget.clear()
-            self.equipment_panel.set_items({})
+            self._rebuild_sorted_list()
         else:
             self._render_dirty = True
 
@@ -130,6 +133,18 @@ class InventoryTab(QWidget):
                 equipped_by_position[object_item.position] = object_item
 
         self.equipment_panel.set_items(equipped_by_position)
+
+        content_known = self.bot.game_state.inventory.inventory_content_known or bool(self.items_by_uid)
+        self.equipment_panel.setVisible(content_known)
+        self.weight_label.setVisible(content_known)
+        if not content_known:
+            placeholder = "Inventory data has not been received yet."
+        elif not bag_items:
+            placeholder = "Your bag is empty."
+        else:
+            placeholder = ""
+        self.grid_container.set_placeholder(placeholder)
+        self.inventory_title.setContentsMargins(0, 0, GRID_SCROLLBAR_SPACE if bag_items else 0, 0)
 
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.clear()
@@ -171,13 +186,16 @@ class InventoryTab(QWidget):
         self.list_widget.clear()
         self.equipment_panel.set_items({})
         self.loading_label.hide()
+        self.grid_container.set_placeholder("Inventory data has not been received yet.")
 
     def _resync_inventory(self) -> None:
         self.items_by_uid.clear()
         self.list_widget.clear()
-        inventory_items = list(self.bot.game_state.inventory.objects_by_uid.values())
-        if inventory_items:
-            self.on_added_object_items_batch(inventory_items)
+        inventory = self.bot.game_state.inventory
+        self.inventory_weight = inventory.inventory_weight
+        self.weight_max = inventory.weight_max
+        self._refresh_weight_label()
+        self.on_added_object_items_batch(list(inventory.objects_by_uid.values()))
 
     def showEvent(self, a0: QShowEvent | None) -> None:
         if self._render_dirty:

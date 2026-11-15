@@ -5,11 +5,11 @@ from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import StatedElement
 from DBDofusUnity.dofus_unity_reader.data_center.map_reader import MapReader
 from DBDofusUnity.dofus_unity_reader.grid.consts import CELL_HEIGHT, CELL_WIDTH
 from DBDofusUnity.dofus_unity_reader.grid.map_point import MAP_POINT_BY_CELL_ID, MapPoint
-from DBDofusUnity.dofus_unity_reader.models.datas.collectionsroot import Collectable
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSlot
 from PyQt6.QtGui import QColor, QFont, QMouseEvent, QPaintEvent, QPainter, QPen, QPicture, QPolygonF, QShowEvent
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from src.core.engine.interactives.collectable import Collectable
 from src.core.signals.grid_signals import GridSignals
 from src.core.signals.world_signals import MapSignals
 from src.gui.utils.profiling import profiled_slot

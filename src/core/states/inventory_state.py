@@ -29,6 +29,7 @@ class InventoryState(State):
         init=False, default_factory=dict[int, ObjectItemInventory]
     )
     bank_content_known: bool = dataclasses.field(init=False, default=False)
+    inventory_content_known: bool = dataclasses.field(init=False, default=False)
     objects_by_uid: ObjectByUid = field(init=False, default_factory=ObjectByUid)
 
     def get_unlinked_objects(self) -> list[ObjectItemInventory]:
@@ -57,6 +58,7 @@ class InventoryState(State):
         )
 
     def set_objects(self, objects: list[ObjectItemInventory]):
+        self.inventory_content_known = True
         self.objects_by_uid.clear()
         for obj in objects:
             self.objects_by_uid[obj.item.uid] = obj
@@ -80,6 +82,7 @@ class InventoryState(State):
             self.inventory_signals.deleted_object_item_uid.emit(uid)
 
     def clear_inventory(self):
+        self.inventory_content_known = False
         self.objects_by_uid.clear()
         self.inventory_signals.clear_inventory.emit()
 

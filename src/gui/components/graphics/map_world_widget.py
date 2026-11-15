@@ -1,9 +1,8 @@
-from collections import defaultdict
 from dataclasses import dataclass
 from math import floor
 
 from DBDofusUnity.dofus_unity_reader.models.datas.map_positions_root import MapInformationRootItem
-from PyQt6.QtCore import QRectF, Qt, pyqtSlot
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSlot
 from PyQt6.QtGui import QColor, QPainter, QPen, QResizeEvent, QShowEvent
 from PyQt6.QtWidgets import (
     QGraphicsEllipseItem,
@@ -104,14 +103,21 @@ class MapWorldView(QGraphicsView):
         self.line_items: list[QGraphicsLineItem] = []
         self._scene: QGraphicsScene = QGraphicsScene()
         self.square_by_coord: dict[Coord, SquareMap] = {}
-        self.map_pos_by_coord: dict[Coord, set[MapInformationRootItem]] = defaultdict(set)
         self._colors_by_map_id: dict[int, tuple[MapInformationRootItem, RGBColor]] = {}
         self._path: list[tuple[MapInformationRootItem, MapInformationRootItem]] = []
         self._current_map: MapInformationRootItem | None = None
         self._render_dirty = False
+        self._scene.setSceneRect(
+            -WIDTH_AROUND_CURRENT_MAP / 2,
+            -HEIGHT_AROUND_CURRENT_MAP / 2,
+            WIDTH_AROUND_CURRENT_MAP,
+            HEIGHT_AROUND_CURRENT_MAP,
+        )
 
         self.setStyleSheet("border: 0px")
-        self.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setScene(self._scene)
         self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
@@ -126,8 +132,26 @@ class MapWorldView(QGraphicsView):
             self.world_signals.curr_map_pos.connect(profiled_slot(self.on_curr_map))
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
+        super().resizeEvent(event)
         self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
-        return super().resizeEvent(event)
+
+    def drawBackground(self, painter: QPainter | None, rect: QRectF) -> None:
+        super().drawBackground(painter, rect)
+        if painter is None:
+            return
+        window = self._scene.sceneRect()
+        painter.save()
+        painter.fillRect(window, self.palette().base())
+        pen = QPen(QColor("#A9A9A9"))
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        for column in range(LIMIT_GRID * 2 + 1):
+            x = window.left() + column * CELL_SIZE
+            painter.drawLine(QPointF(x, window.top()), QPointF(x, window.bottom()))
+        for row in range(LIMIT_GRID * 2 + 1):
+            y = window.top() + row * CELL_SIZE
+            painter.drawLine(QPointF(window.left(), y), QPointF(window.right(), y))
+        painter.restore()
 
     def showEvent(self, event: QShowEvent | None) -> None:
         if self._render_dirty:
@@ -156,13 +180,12 @@ class MapWorldView(QGraphicsView):
         left = x - CELL_SIZE * LIMIT_GRID
         top = y - CELL_SIZE * LIMIT_GRID
         self._scene.setSceneRect(QRectF(left, top, WIDTH_AROUND_CURRENT_MAP, HEIGHT_AROUND_CURRENT_MAP))
-        self.centerOn(x, y)
+        self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
         self._prune_outside_current_window()
 
     def get_or_create_map(self, map_pos: MapInformationRootItem) -> SquareMap:
         coord = map_pos.posX, map_pos.posY
         if coord not in self.square_by_coord:
-            self.map_pos_by_coord[coord].add(map_pos)
             square = SquareMap()
             x, y = self.get_pos_by_coord(coord)
             square.setPos(x, y)
@@ -268,7 +291,6 @@ class MapWorldView(QGraphicsView):
         self.curr_map_info = None
         self.line_items.clear()
         self.square_by_coord.clear()
-        self.map_pos_by_coord.clear()
         for map_pos, color in self._colors_by_map_id.values():
             self.get_or_create_map(map_pos).add_color(map_pos.id, color)
         for map_pos_start, map_pos_end in self._path:
@@ -292,11 +314,11 @@ class MapWorldView(QGraphicsView):
         kept_coords = {
             coord
             for coord in self.square_by_coord
-            if abs(coord[0] - current_x) <= LIMIT_GRID and abs(coord[1] - current_y) <= LIMIT_GRID
+            if -LIMIT_GRID <= coord[0] - current_x < LIMIT_GRID
+            and -LIMIT_GRID <= coord[1] - current_y < LIMIT_GRID
         }
         for coord in set(self.square_by_coord) - kept_coords:
             self._scene.removeItem(self.square_by_coord.pop(coord))
-            self.map_pos_by_coord.pop(coord, None)
         self._colors_by_map_id = {
             map_id: value
             for map_id, value in self._colors_by_map_id.items()

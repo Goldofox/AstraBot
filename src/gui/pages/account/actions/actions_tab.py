@@ -176,17 +176,18 @@ class ActionsTab(QWidget):
             return
         area_id = self.area_farm_combo.currentData()
         sub_area_id = self.sub_area_farm_combo.currentData()
+        mode = self.type_action_combo.currentText()
         self.bot.bot_signals.play.emit(True)
-        if self.type_action_combo.currentText() == FarmActionEnum.HARVESTER:
+        if mode == FarmActionEnum.HARVESTER:
             self.bot.bot_signals.play_harvester.emit(area_id, sub_area_id)
-        elif self.type_action_combo.currentText() == FarmActionEnum.FIGHTER:
+        elif mode == FarmActionEnum.FIGHTER:
             self.bot.bot_signals.play_fighter.emit(area_id, sub_area_id)
-        elif self.type_action_combo.currentText() == FarmActionEnum.AUTO:
+        elif mode == FarmActionEnum.AUTO:
             self.bot.bot_signals.play_auto_bot.emit()
-        elif self.type_action_combo.currentText() == CraftActionEnum.CRAFTER:
+        elif mode == CraftActionEnum.CRAFTER:
             self.bot.bot_signals.play_crafter.emit(self._ensure_craft_panel().recipes)
-        elif self.type_action_combo.currentText() not in FarmActionEnum:
-            self.bot.bot_signals.play_usable_behavior.emit(self.type_action_combo.currentText())
+        else:
+            self.bot.bot_signals.play_usable_behavior.emit(mode)
 
     @pyqtSlot(bool)
     def on_play(self, _: bool) -> None:

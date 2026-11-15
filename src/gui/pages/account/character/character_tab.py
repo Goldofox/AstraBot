@@ -32,6 +32,19 @@ class CharacterTab(QWidget):
 
         layout = QHBoxLayout(self)
         grid_view = GridView(self.grid_signals)
+        grid_view.on_new_map_id(self.game_state.map.map_id)
+        grid_view.on_new_count_actor_on_cell_id_batch(
+            [(point.cell_id, len(actors)) for point, actors in self.game_state.entity.actors_on_mp.items()]
+        )
+        grid_view.on_set_obstacle_on_cell_id_batch(
+            [(cell_id, True) for cell_id in self.game_state.entity.obstacle_on_cell_id]
+        )
+        grid_view.on_set_stated_element_on_cell_id_batch(
+            [
+                (stated_element.cell_id, stated_element, collectable)
+                for stated_element, collectable in self.game_state.interactive.stated_element_by_id.values()
+            ]
+        )
         layout.addWidget(grid_view, 1)
 
         self.info_panel = PlayerInfoPanel(bot, parent=self, snapshot=snapshot)

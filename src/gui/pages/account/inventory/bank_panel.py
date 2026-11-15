@@ -25,6 +25,8 @@ class BankPanel(QWidget):
         self._rebuild_timer.timeout.connect(self._rebuild_sorted_list)
 
         self.list_widget = ItemGrid(self)
+        self.grid_container = ItemGridContainer(self.list_widget, self)
+        self.grid_container.set_placeholder("Bank data has not been received yet.\nOpen a bank to load its contents.")
         self.loading_label = CaptionLabel(text="Loading bank…", parent=self)
         self.loading_label.hide()
 
@@ -34,7 +36,7 @@ class BankPanel(QWidget):
         title = BodyLabel(text="Bank", parent=self)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
-        layout.addWidget(ItemGridContainer(self.list_widget, self), 1)
+        layout.addWidget(self.grid_container, 1)
         layout.addWidget(self.loading_label)
 
     @pyqtSlot(list)
@@ -63,6 +65,13 @@ class BankPanel(QWidget):
             self._rebuild_timer.start()
 
     def _rebuild_sorted_list(self) -> None:
+        if self.items_by_uid:
+            placeholder = ""
+        elif self.bot.game_state.inventory.bank_content_known:
+            placeholder = "Your bank is empty."
+        else:
+            placeholder = "Bank data has not been received yet.\nOpen a bank to load its contents."
+        self.grid_container.set_placeholder(placeholder)
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.clear()
         sorted_items = sorted(self.items_by_uid.values(), key=lambda obj: obj.item.quantity, reverse=True)
@@ -94,11 +103,8 @@ class BankPanel(QWidget):
         self.loading_label.hide()
 
     def _resync_bank(self) -> None:
-        self.items_by_uid.clear()
-        self.list_widget.clear()
         bank_items = list(self.bot.game_state.inventory.bank_objects_by_uid.values())
-        if bank_items:
-            self.on_bank_refreshed(bank_items)
+        self.on_bank_refreshed(bank_items)
 
     def showEvent(self, a0: QShowEvent | None) -> None:
         if self._render_dirty:

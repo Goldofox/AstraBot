@@ -63,8 +63,8 @@ class AccountPage(QWidget):
             if item is None:
                 raise ValueError(f"Segmented route `{label}` is already registered")
             item.setFixedHeight(40)
-        self.pivot.setCurrentItem("Character")
-        self._select_tab("Character")
+        self.pivot.setCurrentItem("Actions")
+        self._select_tab("Actions")
 
     def _select_tab(self, label: str) -> None:
         if self._storage_tab is not None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import ObjectItemInventory
 from PyQt6.QtCore import QPoint, QSize, QTimer, Qt, pyqtSlot
 from PyQt6.QtGui import QIcon, QImage, QPixmap, QResizeEvent, QShowEvent
-from PyQt6.QtWidgets import QHBoxLayout, QListView, QListWidgetItem, QWidget
-from qfluentwidgets import ListWidget, SmoothMode
+from PyQt6.QtWidgets import QGridLayout, QListView, QListWidgetItem, QWidget
+from qfluentwidgets import CaptionLabel, ListWidget, SmoothMode
 
 from src.gui.components.inventory_item_delegate import InventoryItemDelegate
 from src.gui.services.item_icons import ICON_SIZE, item_icon_cache
@@ -12,21 +12,32 @@ from src.gui.utils.item_display import get_item_display
 
 CELL_SIZE = 80
 CELL_SPACING = 6
+GRID_SCROLLBAR_SPACE = 20
 
 
 class ItemGridContainer(QWidget):
     def __init__(self, grid: ItemGrid, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.grid = grid
-        self.setMinimumWidth(CELL_SIZE + 20)
-        layout = QHBoxLayout(self)
+        self.setMinimumWidth(CELL_SIZE + GRID_SCROLLBAR_SPACE)
+        layout = QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(grid, alignment=Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(grid, 0, 0, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.placeholder = CaptionLabel(parent=self)
+        self.placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.placeholder.setWordWrap(True)
+        self.placeholder.hide()
+        layout.addWidget(self.placeholder, 0, 0)
+
+    def set_placeholder(self, text: str) -> None:
+        self.placeholder.setText(text)
+        self.placeholder.setVisible(bool(text))
+        self.grid.setVisible(not text)
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         super().resizeEvent(a0)
-        columns = max(1, (self.width() - 20) // CELL_SIZE)
-        self.grid.setFixedWidth(columns * CELL_SIZE + 20)
+        columns = max(1, (self.width() - GRID_SCROLLBAR_SPACE) // CELL_SIZE)
+        self.grid.setFixedWidth(columns * CELL_SIZE + GRID_SCROLLBAR_SPACE)
 
 
 class ItemGrid(ListWidget):
@@ -55,7 +66,7 @@ class ItemGrid(ListWidget):
         scrollbar.valueChanged.connect(self._schedule_icons)
         self.setStyleSheet("QListWidget { background-color: transparent; border: none; }")
 
-    def add_object_item(self, object_item: ObjectItemInventory) -> None:
+    def add_object_item(self, object_item: ObjectItemInventory) -> QListWidgetItem:
         item = QListWidgetItem()
         item.setSizeHint(QSize(CELL_SIZE, CELL_SIZE))
         name, icon_id = get_item_display(object_item.item.gid)
@@ -69,6 +80,7 @@ class ItemGrid(ListWidget):
                 self._display_icons[icon_id] = QIcon(QPixmap.fromImage(image)) if image is not None else None
         self.addItem(item)
         self._schedule_icons()
+        return item
 
     def clear(self) -> None:
         self._icon_timer.stop()

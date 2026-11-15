@@ -60,8 +60,6 @@ class EquipmentPanel(GroupBox):
                 item.setToolTip(label)
                 self.list_widget.addItem(item)
             else:
-                self.list_widget.add_object_item(object_item)
-                item = self.list_widget.item(self.list_widget.count() - 1)
-                if item is not None:
-                    item.setToolTip(f"{label}\n{item.text()}")
+                item = self.list_widget.add_object_item(object_item)
+                item.setToolTip(f"{label}\n{item.text()}")
         self.list_widget.setUpdatesEnabled(True)
