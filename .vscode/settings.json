@@ -7,8 +7,8 @@
     ],
     "python.languageServer": "None",
     "ty.diagnosticMode": "workspace",
-    "ty.inlayHints.variableTypes": true,
-    "ty.inlayHints.callArgumentNames": true,
+    "ty.inlayHints.variableTypes": false,
+    "ty.inlayHints.callArgumentNames": false,
     "files.watcherExclude": {
         "**/DBDofusUnity/datas/**": true,
         "**/DBDofusUnity/Il2CppInspectorRedux/**": true,
