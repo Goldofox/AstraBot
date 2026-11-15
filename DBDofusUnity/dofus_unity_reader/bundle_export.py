@@ -89,9 +89,9 @@ def load_bundle(bundle_path: Path, *, game_dir: Path = OBF_GAME_DIR) -> AssetEnv
 
 
 def iter_bundle_data(
-    bundle_path: Path, *, names: Set[str] | None = None
+    bundle_path: Path, *, names: Set[str] | None = None, game_dir: Path = OBF_GAME_DIR
 ) -> Iterator[tuple[str, dict[str, Any] | list[Any]]]:
-    environment = load_bundle(bundle_path)
+    environment = load_bundle(bundle_path, game_dir=game_dir)
     for obj in environment.objects:
         if obj.type.name != "MonoBehaviour":
             continue

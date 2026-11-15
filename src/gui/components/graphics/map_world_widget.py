@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from math import floor
+from math import ceil, floor
 
 from DBDofusUnity.dofus_unity_reader.models.datas.map_positions_root import MapInformationRootItem
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSlot
+from PyQt6.QtCore import QRectF, Qt, pyqtSlot
 from PyQt6.QtGui import QColor, QPainter, QPen, QResizeEvent, QShowEvent
 from PyQt6.QtWidgets import (
     QGraphicsEllipseItem,
@@ -16,12 +16,12 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.signals.world_signals import WorldSignals
+from src.gui.services.worldmap_tiles import TILE_SIZE, worldmap_tile_cache
 from src.gui.utils.profiling import profiled_slot
 
 type Coord = tuple[int, int]
 type RGBColor = tuple[int, int, int]
 
-TEXT_SIZE = 9
 CELL_SIZE: int = 50
 LIMIT_GRID = 8
 MAX_PATH_EDGES = 500
@@ -31,13 +31,14 @@ HEIGHT_AROUND_CURRENT_MAP = CELL_SIZE * LIMIT_GRID * 2
 
 
 class SquareMap(QGraphicsRectItem):
-    DEFAULT = Qt.GlobalColor.white
+    DEFAULT = Qt.GlobalColor.transparent
 
     def __init__(self):
         self.colors_by_map_id: dict[int, RGBColor] = {}
         rect = QRectF(0, 0, CELL_SIZE, CELL_SIZE)
         super().__init__(rect)
-        self.set_border()
+        self.setBrush(self.DEFAULT)
+        self.setPen(QPen(Qt.PenStyle.NoPen))
 
     def add_color(self, map_id: int, color: RGBColor):
         self.colors_by_map_id[map_id] = color
@@ -46,11 +47,7 @@ class SquareMap(QGraphicsRectItem):
     def reset_color(self):
         self.colors_by_map_id.clear()
         self.setBrush(SquareMap.DEFAULT)
-
-    def set_border(self):
-        pen = QPen(QColor("#A9A9A9"))
-        pen.setWidth(0)
-        self.setPen(pen)
+        self.update()
 
     def paint(
         self,
@@ -66,21 +63,20 @@ class SquareMap(QGraphicsRectItem):
         all_colors = set(self.colors_by_map_id.values())
         divided_height = floor(self.boundingRect().height() / len(all_colors))
         for index, color in enumerate(all_colors):
-            painter.setBrush(QColor(*color))
             rect = QRectF(
                 self.boundingRect().x(),
                 self.boundingRect().y() + divided_height * index,
                 self.boundingRect().width(),
                 divided_height,
             )
-            painter.drawRect(rect)
+            painter.fillRect(rect, QColor(*color, 89))
 
 
 class MapCircle(QGraphicsEllipseItem):
     def __init__(self) -> None:
         super().__init__(
             CELL_SIZE // 4,
-            CELL_SIZE // 4 + TEXT_SIZE,
+            CELL_SIZE // 4,
             CELL_SIZE // 2,
             CELL_SIZE // 2,
         )
@@ -107,6 +103,10 @@ class MapWorldView(QGraphicsView):
         self._path: list[tuple[MapInformationRootItem, MapInformationRootItem]] = []
         self._current_map: MapInformationRootItem | None = None
         self._render_dirty = False
+        self._tiles = worldmap_tile_cache()
+        viewport = self.viewport()
+        if viewport is not None:
+            self._tiles.changed.connect(viewport.update)
         self._scene.setSceneRect(
             -WIDTH_AROUND_CURRENT_MAP / 2,
             -HEIGHT_AROUND_CURRENT_MAP / 2,
@@ -120,7 +120,7 @@ class MapWorldView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setScene(self._scene)
-        self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
+        self._fit_window()
 
         if self.world_signals:
             self.world_signals.color_pos.connect(profiled_slot(self.on_color_pos))
@@ -133,7 +133,11 @@ class MapWorldView(QGraphicsView):
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
         super().resizeEvent(event)
+        self._fit_window()
+
+    def _fit_window(self) -> None:
         self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
+        self.centerOn(self._scene.sceneRect().center())
 
     def drawBackground(self, painter: QPainter | None, rect: QRectF) -> None:
         super().drawBackground(painter, rect)
@@ -142,16 +146,44 @@ class MapWorldView(QGraphicsView):
         window = self._scene.sceneRect()
         painter.save()
         painter.fillRect(window, self.palette().base())
-        pen = QPen(QColor("#A9A9A9"))
-        pen.setCosmetic(True)
-        painter.setPen(pen)
-        for column in range(LIMIT_GRID * 2 + 1):
-            x = window.left() + column * CELL_SIZE
-            painter.drawLine(QPointF(x, window.top()), QPointF(x, window.bottom()))
-        for row in range(LIMIT_GRID * 2 + 1):
-            y = window.top() + row * CELL_SIZE
-            painter.drawLine(QPointF(window.left(), y), QPointF(window.right(), y))
+        self._draw_worldmap(painter, window.intersected(rect))
         painter.restore()
+
+    def _draw_worldmap(self, painter: QPainter, window: QRectF) -> None:
+        if self._current_map is None or self._current_map.worldMap < 0:
+            return
+        world_id = self._current_map.worldMap
+        world = self._tiles.geometry(world_id)
+        if world is None:
+            return
+        scale_x, scale_y = CELL_SIZE / world.mapWidth, CELL_SIZE / world.mapHeight
+        columns = ceil(world.totalWidth / TILE_SIZE)
+        rows = ceil(world.totalHeight / TILE_SIZE)
+        first_col = max(0, floor((window.left() / scale_x + world.origineX) / TILE_SIZE))
+        last_col = min(columns - 1, floor((window.right() / scale_x + world.origineX) / TILE_SIZE))
+        first_row = max(0, floor((window.top() / scale_y + world.origineY) / TILE_SIZE))
+        last_row = min(rows - 1, floor((window.bottom() / scale_y + world.origineY) / TILE_SIZE))
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        for row in range(first_row, last_row + 1):
+            for column in range(first_col, last_col + 1):
+                number = row * columns + column + 1
+                image = self._tiles.request(world_id, number)
+                if image is None:
+                    continue
+                width = min(image.width(), world.totalWidth - column * TILE_SIZE)
+                height = min(image.height(), world.totalHeight - row * TILE_SIZE)
+                target = QRectF(
+                    (column * TILE_SIZE - world.origineX) * scale_x,
+                    (row * TILE_SIZE - world.origineY) * scale_y,
+                    width * scale_x,
+                    height * scale_y,
+                )
+                painter.drawImage(target, image, QRectF(0, 0, width, height))
+        painter.restore()
+
+    def _same_world(self, map_pos: MapInformationRootItem) -> bool:
+        return self._current_map is None or map_pos.worldMap == self._current_map.worldMap
 
     def showEvent(self, event: QShowEvent | None) -> None:
         if self._render_dirty:
@@ -160,9 +192,18 @@ class MapWorldView(QGraphicsView):
 
     @pyqtSlot(MapInformationRootItem)
     def on_curr_map(self, map_pos: MapInformationRootItem):
+        changed_world = self._current_map is None or self._current_map.worldMap != map_pos.worldMap
         self._current_map = map_pos
+        if changed_world:
+            self._colors_by_map_id = {
+                key: value for key, value in self._colors_by_map_id.items() if self._same_world(value[0])
+            }
+            self._path = [(start, end) for start, end in self._path if self._same_world(start) and self._same_world(end)]
         if not self.isVisible():
             self._render_dirty = True
+            return
+        if changed_world:
+            self._rebuild_scene()
             return
         self._render_current_map(map_pos)
 
@@ -177,10 +218,11 @@ class MapWorldView(QGraphicsView):
 
         x, y = self.get_pos_by_coord(coord)
         self.curr_map_info.state.setPos(x, y)
-        left = x - CELL_SIZE * LIMIT_GRID
-        top = y - CELL_SIZE * LIMIT_GRID
+        center = self.curr_map_info.state.sceneBoundingRect().center()
+        left = center.x() - WIDTH_AROUND_CURRENT_MAP / 2
+        top = center.y() - HEIGHT_AROUND_CURRENT_MAP / 2
         self._scene.setSceneRect(QRectF(left, top, WIDTH_AROUND_CURRENT_MAP, HEIGHT_AROUND_CURRENT_MAP))
-        self.fitInView(self._scene.sceneRect(), mode=Qt.AspectRatioMode.KeepAspectRatio)
+        self._fit_window()
         self._prune_outside_current_window()
 
     def get_or_create_map(self, map_pos: MapInformationRootItem) -> SquareMap:
@@ -205,6 +247,8 @@ class MapWorldView(QGraphicsView):
 
     @pyqtSlot(MapInformationRootItem, tuple)
     def on_color_pos(self, map_pos: MapInformationRootItem, color: RGBColor):
+        if not self._same_world(map_pos):
+            return
         self._colors_by_map_id[map_pos.id] = (map_pos, color)
         if not self.isVisible():
             self._render_dirty = True
@@ -214,6 +258,7 @@ class MapWorldView(QGraphicsView):
 
     @pyqtSlot(list)
     def on_color_pos_batch(self, items: list[tuple[MapInformationRootItem, RGBColor]]):
+        items = [(map_pos, color) for map_pos, color in items if self._same_world(map_pos)]
         for map_pos, color in items:
             self._colors_by_map_id[map_pos.id] = (map_pos, color)
         if not self.isVisible():
@@ -227,6 +272,8 @@ class MapWorldView(QGraphicsView):
 
     @pyqtSlot(MapInformationRootItem, MapInformationRootItem)
     def on_arrow_pos(self, map_pos_start: MapInformationRootItem, map_pos_end: MapInformationRootItem):
+        if not self._same_world(map_pos_start) or not self._same_world(map_pos_end):
+            return
         self._path.append((map_pos_start, map_pos_end))
         self._trim_path()
         if not self.isVisible():
@@ -253,6 +300,7 @@ class MapWorldView(QGraphicsView):
 
     @pyqtSlot(list)
     def on_arrow_pos_batch(self, items: list[tuple[MapInformationRootItem, MapInformationRootItem]]):
+        items = [(start, end) for start, end in items if self._same_world(start) and self._same_world(end)]
         self._path.extend(items)
         self._trim_path()
         if not self.isVisible():

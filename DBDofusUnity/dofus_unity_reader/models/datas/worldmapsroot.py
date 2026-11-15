@@ -16,7 +16,6 @@ class WorldmapsrootItem(Struct, frozen=True, kw_only=True):
     origineY: int
     mapWidth: float
     mapHeight: float
-    viewableEverywhere: int
     minScale: float
     maxScale: float
     startScale: float
